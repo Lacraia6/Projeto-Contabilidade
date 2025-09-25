@@ -65,7 +65,13 @@ def return_page():
         ).filter(
             Empresa.ativo == True,
             RelacionamentoTarefa.status == 'ativa'
-        ).distinct().order_by(Empresa.nome)
+        )
+        
+        # Filtrar empresas por setor do gerente (se for gerente)
+        if usuario and usuario.tipo == 'gerente' and usuario.setor_id:
+            empresas_query = empresas_query.filter(Tarefa.setor_id == usuario.setor_id)
+        
+        empresas_query = empresas_query.distinct().order_by(Empresa.nome)
         
         empresas = empresas_query.all()
         
@@ -92,6 +98,10 @@ def return_page():
             Empresa.ativo == True,
             RelacionamentoTarefa.status == 'ativa'
         )
+        
+        # Filtrar por setor do gerente (se for gerente)
+        if usuario and usuario.tipo == 'gerente' and usuario.setor_id:
+            q = q.filter(Tarefa.setor_id == usuario.setor_id)
         
         # Filtrar por empresa se selecionada
         if empresa_atual:
@@ -194,14 +204,24 @@ def api_empresas():
     """API para buscar empresas para o painel do gerente"""
     try:
         search = request.args.get('search', '').strip()
+        user_id = session.get('user_id')
+        usuario = Usuario.query.get(user_id) if user_id else None
         
         # Buscar empresas que têm tarefas ativas
         query = db.session.query(Empresa).join(
             RelacionamentoTarefa, RelacionamentoTarefa.empresa_id == Empresa.id
+        ).join(
+            Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
         ).filter(
             Empresa.ativo == True,
             RelacionamentoTarefa.status == 'ativa'
-        ).distinct()
+        )
+        
+        # Filtrar por setor do gerente (se for gerente)
+        if usuario and usuario.tipo == 'gerente' and usuario.setor_id:
+            query = query.filter(Tarefa.setor_id == usuario.setor_id)
+        
+        query = query.distinct()
         
         if search:
             query = query.filter(
@@ -274,9 +294,15 @@ def api_tarefas():
     """API para buscar tarefas para o painel do gerente"""
     try:
         search = request.args.get('search', '').strip()
+        user_id = session.get('user_id')
+        usuario = Usuario.query.get(user_id) if user_id else None
         
         # Buscar tarefas
         query = db.session.query(Tarefa)
+        
+        # Filtrar por setor do gerente (se for gerente)
+        if usuario and usuario.tipo == 'gerente' and usuario.setor_id:
+            query = query.filter(Tarefa.setor_id == usuario.setor_id)
         
         if search:
             query = query.filter(

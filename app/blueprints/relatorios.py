@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, make_response
+from flask import Blueprint, render_template, request, jsonify, make_response, session
 from app.models import Empresa, Tarefa, RelacionamentoTarefa, Periodo, Usuario
 from app.db import db
 from datetime import datetime, timedelta
@@ -19,7 +19,29 @@ bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
 @bp.get('/')
 def return_page():
 	"""Página principal de relatórios"""
-	empresas_opts = [{"id": e.id, "nome": e.nome} for e in Empresa.query.filter_by(ativo=True).order_by(Empresa.nome).all()]
+	# Buscar dados do usuário logado
+	user_id = session.get('user_id')
+	usuario_logado = Usuario.query.get(user_id) if user_id else None
+	
+	# Filtrar empresas baseado no setor do gerente
+	if usuario_logado and usuario_logado.tipo == 'gerente' and usuario_logado.setor_id:
+		# Buscar empresas que têm tarefas do setor do gerente
+		empresas_query = db.session.query(Empresa).join(
+			RelacionamentoTarefa, RelacionamentoTarefa.empresa_id == Empresa.id
+		).join(
+			Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
+		).filter(
+			Empresa.ativo == True,
+			Tarefa.setor_id == usuario_logado.setor_id,
+			RelacionamentoTarefa.status == 'ativa'
+		).distinct().order_by(Empresa.nome)
+		
+		empresas = empresas_query.all()
+	else:
+		# Admin ou usuário normal vê todas as empresas
+		empresas = Empresa.query.filter_by(ativo=True).order_by(Empresa.nome).all()
+	
+	empresas_opts = [{"id": e.id, "nome": e.nome} for e in empresas]
 	return render_template('relatorios.html', aba='relatorios', empresas=empresas_opts)
 
 
@@ -34,6 +56,10 @@ def api_dados_relatorio():
 		data_inicial = request.args.get('data_inicial')
 		data_final = request.args.get('data_final')
 		status = request.args.get('status', 'todos')
+		
+		# Buscar dados do usuário logado
+		user_id = session.get('user_id')
+		usuario_logado = Usuario.query.get(user_id) if user_id else None
 		
 		# Construir query base
 		query = db.session.query(
@@ -51,6 +77,10 @@ def api_dados_relatorio():
 		 .join(Empresa, RelacionamentoTarefa.empresa_id == Empresa.id)\
 		 .join(Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id)\
 		 .outerjoin(Usuario, RelacionamentoTarefa.responsavel_id == Usuario.id)
+		
+		# Filtrar por setor do gerente (se for gerente)
+		if usuario_logado and usuario_logado.tipo == 'gerente' and usuario_logado.setor_id:
+			query = query.filter(Tarefa.setor_id == usuario_logado.setor_id)
 		
 		# Aplicar filtros
 		if empresa_id:
@@ -126,7 +156,7 @@ def gerar_pdf():
 		data_final = request.args.get('data_final')
 		status = request.args.get('status', 'todos')
 		
-		# Buscar dados
+		# Buscar dados (a função api_dados_relatorio já aplica o filtro de setor)
 		response = api_dados_relatorio()
 		if response[1] != 200:  # Se houve erro
 			return response

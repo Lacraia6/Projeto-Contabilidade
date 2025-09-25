@@ -153,8 +153,30 @@ def bulk_link_tasks():
 	responsavel_id = request.form.get('responsavel_id', type=int)
 	dia_vencimento = request.form.get('dia_vencimento', type=int)
 	
-	if not empresa_ids or not tarefa_ids:
-		flash('Selecione pelo menos uma empresa e uma tarefa!')
+	# Processar IDs - pode vir como lista ou string separada por vírgulas
+	def process_ids(ids_list):
+		result = []
+		for id_item in ids_list:
+			if id_item.strip():
+				# Se contém vírgula, dividir e adicionar cada ID
+				if ',' in id_item:
+					split_ids = [id_str.strip() for id_str in id_item.split(',') if id_str.strip()]
+					result.extend([int(id_str) for id_str in split_ids])
+				else:
+					# ID único
+					result.append(int(id_item))
+		return result
+	
+	empresa_ids = process_ids(empresa_ids)
+	tarefa_ids = process_ids(tarefa_ids)
+	
+	# Se nenhuma empresa foi selecionada, usar todas as empresas ativas
+	if not empresa_ids:
+		empresas_ativas = Empresa.query.filter_by(ativo=True).all()
+		empresa_ids = [empresa.id for empresa in empresas_ativas]
+	
+	if not tarefa_ids:
+		flash('Selecione pelo menos uma tarefa!')
 		return redirect(url_for('accounts.return_page'))
 	
 	vinculos_criados = 0
@@ -168,8 +190,8 @@ def bulk_link_tasks():
 			
 			if not existing:
 				rel = RelacionamentoTarefa(
-					empresa_id=int(empresa_id),
-					tarefa_id=int(tarefa_id),
+					empresa_id=empresa_id,
+					tarefa_id=tarefa_id,
 					responsavel_id=responsavel_id,
 					status='ativa',
 					dia_vencimento=dia_vencimento
