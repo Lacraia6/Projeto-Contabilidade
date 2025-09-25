@@ -1,0 +1,80 @@
+# ---- Arquivos de cache do Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ---- Ambientes virtuais ----
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ---- Arquivos de configuração locais ----
+*.env
+*.ini
+*.toml
+*.cfg
+*.conf
+
+# ---- Logs ----
+*.log
+*.out
+*.err
+
+# ---- Banco de dados locais ----
+*.sqlite3
+*.db
+*.sqlite
+
+# ---- PyInstaller ----
+# (arquivos criados quando se empacota o projeto)
+*.spec
+dist/
+build/
+
+# ---- Ferramentas de testes/coverage ----
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# ---- Documentação ----
+docs/_build/
+doc/_build/
+
+# ---- Jupyter Notebook ----
+.ipynb_checkpoints
+*.ipynb
+
+# ---- IDEs e editores ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.bak
+
+# ---- Sistema operacional ----
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ---- Arquivos temporários ----
+*.tmp
+*.temp
+*.pid
+
+# ---- Outras pastas que podem aparecer ----
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/

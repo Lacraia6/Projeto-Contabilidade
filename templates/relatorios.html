@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}Relatórios{% endblock %}
+{% block content %}
+  <section id="relatorios" class="tab-content active dashboard-section">
+    <div class="dashboard-header">
+      <h1><i class="fas fa-chart-bar"></i> Relatórios</h1>
+      <p>Análises e relatórios detalhados das tarefas</p>
+    </div>
+
+    <!-- Filtros -->
+    <div class="dashboard-filters">
+      <div class="card-header">
+        <h3><i class="fas fa-filter"></i> Filtros do Relatório</h3>
+      </div>
+      
+      <form id="relatorioForm" class="form-grid">
+        <!-- Empresa -->
+        <div class="form-group">
+          <label for="empresa">Empresa (opcional)</label>
+          <div class="empresa-search-container multiple-selection">
+            <input type="text" id="empresa-search" placeholder="Digite para buscar empresa..." autocomplete="off">
+            <div id="empresa-results" class="search-results" style="display: none;"></div>
+            <input type="hidden" id="empresa_id" name="empresa_id" value="">
+            <div id="empresa-selected" class="selected-items-container">
+              <div class="selected-item">
+                <span class="selected-item-text">Todas as empresas</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Funcionário -->
+        <div class="form-group">
+          <label for="funcionario">Funcionário (opcional)</label>
+          <div class="colaborador-search-container multiple-selection">
+            <input type="text" id="funcionario-search" placeholder="Digite para buscar funcionário..." autocomplete="off">
+            <div id="funcionario-results" class="search-results" style="display: none;"></div>
+            <input type="hidden" id="funcionario_id" name="funcionario_id" value="">
+            <div id="funcionario-selected" class="selected-items-container">
+              <div class="selected-item">
+                <span class="selected-item-text">Todos os funcionários</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarefa -->
+        <div class="form-group">
+          <label for="tarefa">Tarefa (opcional)</label>
+          <div class="tarefa-search-container multiple-selection">
+            <input type="text" id="tarefa-search" placeholder="Digite para buscar tarefa..." autocomplete="off">
+            <div id="tarefa-results" class="search-results" style="display: none;"></div>
+            <input type="hidden" id="tarefa_id" name="tarefa_id" value="">
+            <div id="tarefa-selected" class="selected-items-container">
+              <div class="selected-item">
+                <span class="selected-item-text">Todas as tarefas</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Período - Data Inicial -->
+        <div class="form-group">
+          <label for="data_inicial">Data Inicial</label>
+          <input type="date" id="data_inicial" name="data_inicial" required>
+        </div>
+
+        <!-- Período - Data Final -->
+        <div class="form-group">
+          <label for="data_final">Data Final</label>
+          <input type="date" id="data_final" name="data_final" required>
+        </div>
+
+        <!-- Status -->
+        <div class="form-group">
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            <option value="todos">Todos</option>
+            <option value="pendente">Pendentes</option>
+            <option value="em_andamento">Em Andamento</option>
+            <option value="concluida">Concluídas</option>
+          </select>
+        </div>
+
+        <!-- Botões -->
+        <div class="form-actions">
+          <button type="button" id="gerarRelatorio" class="btn btn-primary">
+            <i class="fas fa-chart-bar"></i> Gerar Relatório
+          </button>
+          <button type="button" id="gerarPDF" class="btn btn-success">
+            <i class="fas fa-file-pdf"></i> Gerar PDF
+          </button>
+          <button type="button" id="imprimirRelatorio" class="btn btn-info">
+            <i class="fas fa-print"></i> Imprimir
+          </button>
+          <button type="reset" class="btn btn-secondary">
+            <i class="fas fa-undo"></i> Limpar Filtros
+          </button>
+        </div>
+      </form>
+    </div>
+
+
+    <!-- Tabela de Resultados -->
+    <div class="dashboard-table" id="tableContainer" style="display: none;">
+      <div class="card-header">
+        <h3><i class="fas fa-table"></i> Resultados do Relatório</h3>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table" id="relatorioTable">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Tarefa</th>
+              <th>Tipo</th>
+              <th>Período</th>
+              <th>Status</th>
+              <th>Responsável</th>
+              <th id="dataHeader">Data Conclusão</th>
+            </tr>
+          </thead>
+          <tbody id="relatorioTableBody">
+            <!-- Dados serão carregados via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div class="feedback-container" id="feedbackContainer" style="display: none;">
+      <div class="feedback-message" id="feedbackMessage"></div>
+    </div>
+  </section>
+
+  <script>
+    // Inicialização dos relatórios
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🚀 Inicializando relatórios...');
+      
+      // Configurar botões
+      document.getElementById('gerarRelatorio').addEventListener('click', gerarRelatorio);
+      document.getElementById('gerarPDF').addEventListener('click', gerarPDF);
+      document.getElementById('imprimirRelatorio').addEventListener('click', imprimirRelatorio);
+      
+      // Configurar datas padrão (último mês)
+      const hoje = new Date();
+      const mesPassado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+      const ultimoDiaMesPassado = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+      
+      document.getElementById('data_inicial').value = mesPassado.toISOString().split('T')[0];
+      document.getElementById('data_final').value = ultimoDiaMesPassado.toISOString().split('T')[0];
+      
+      console.log('✅ Relatórios inicializados');
+    });
+    
+    function gerarRelatorio() {
+      console.log('📊 Gerando relatório...');
+      
+      const form = document.getElementById('relatorioForm');
+      const formData = new FormData(form);
+      const params = new URLSearchParams(formData);
+      
+      fetch(`/relatorios/api/dados?${params}`, {
+        credentials: 'same-origin'
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          exibirResultados(data);
+          mostrarFeedback('Relatório gerado com sucesso!', 'success');
+        } else {
+          mostrarFeedback('Erro ao gerar relatório: ' + data.error, 'error');
+        }
+      })
+      .catch(error => {
+        console.error('Erro:', error);
+        mostrarFeedback('Erro ao carregar dados do relatório', 'error');
+      });
+    }
+    
+    function gerarPDF() {
+      console.log('📄 Gerando PDF...');
+      
+      const form = document.getElementById('relatorioForm');
+      const formData = new FormData(form);
+      const params = new URLSearchParams(formData);
+      
+      // Abrir PDF em nova aba
+      window.open(`/relatorios/pdf?${params}`, '_blank');
+      mostrarFeedback('PDF sendo gerado...', 'info');
+    }
+    
+    function imprimirRelatorio() {
+      console.log('🖨️ Imprimindo relatório...');
+      
+      const tableContainer = document.getElementById('tableContainer');
+      
+      if (tableContainer.style.display === 'none') {
+        mostrarFeedback('Gere o relatório primeiro antes de imprimir', 'warning');
+        return;
+      }
+      
+      // Criar uma nova janela para impressão
+      const printWindow = window.open('', '_blank');
+      
+      // HTML para impressão
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Relatório de Tarefas</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { color: #333; text-align: center; margin-bottom: 30px; }
+            .filtros { background: #f5f5f5; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+            .filtros h3 { margin-top: 0; color: #666; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .status-pendente { color: #f59e0b; }
+            .status-em-andamento { color: #3b82f6; }
+            .status-concluida { color: #10b981; }
+            .status-retificada { color: #ef4444; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Relatório de Tarefas</h1>
+          <div class="filtros">
+            <h3>Filtros Aplicados</h3>
+            <p><strong>Data:</strong> ${document.getElementById('data_inicial').value} a ${document.getElementById('data_final').value}</p>
+            <p><strong>Status:</strong> ${document.getElementById('status').selectedOptions[0].text}</p>
+          </div>
+          ${tableContainer.innerHTML}
+        </body>
+        </html>
+      `;
+      
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      
+      // Aguardar carregamento e imprimir
+      printWindow.onload = function() {
+        printWindow.print();
+        printWindow.close();
+      };
+      
+      mostrarFeedback('Preparando impressão...', 'info');
+    }
+    
+    function exibirResultados(data) {
+      console.log('📋 Exibindo resultados:', data);
+      
+      // Atualizar cabeçalho da coluna de data baseado nos dados
+      const dataHeader = document.getElementById('dataHeader');
+      let hasRetificacao = false;
+      
+      if (data.dados && data.dados.length > 0) {
+        hasRetificacao = data.dados.some(item => item.label_data === 'Retificação');
+      }
+      
+      dataHeader.textContent = hasRetificacao ? 'Data de Retificação' : 'Data de Conclusão';
+      
+      // Preencher tabela
+      const tbody = document.getElementById('relatorioTableBody');
+      tbody.innerHTML = '';
+      
+      if (data.dados && data.dados.length > 0) {
+        data.dados.forEach(item => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${item.empresa_nome}</td>
+            <td>${item.tarefa_nome}</td>
+            <td>${item.tarefa_tipo}</td>
+            <td>${item.periodo_formatado}</td>
+            <td><span class="status-badge status-${item.status}">${item.status_texto}</span></td>
+            <td>${item.responsavel_nome}</td>
+            <td>${item.data_conclusao}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } else {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum registro encontrado</td></tr>';
+      }
+      
+      document.getElementById('tableContainer').style.display = 'block';
+    }
+    
+    function mostrarFeedback(mensagem, tipo) {
+      const container = document.getElementById('feedbackContainer');
+      const message = document.getElementById('feedbackMessage');
+      
+      message.textContent = mensagem;
+      message.className = `feedback-message feedback-${tipo}`;
+      container.style.display = 'block';
+      
+      // Auto-hide após 5 segundos
+      setTimeout(() => {
+        container.style.display = 'none';
+      }, 5000);
+    }
+  </script>
+
+{% endblock %}

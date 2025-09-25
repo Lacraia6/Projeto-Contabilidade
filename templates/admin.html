@@ -1,0 +1,832 @@
+{% extends "base.html" %}
+{% block title %}Administração{% endblock %}
+{% block content %}
+<section id="admin" class="tab-content active">
+  <div class="page-header">
+    <h1>Administração</h1>
+    <p>Cadastro de usuários e empresas</p>
+  </div>
+
+  <div class="content-card">
+    <div class="card-header">
+      <h3><i class="fas fa-calendar-plus"></i> Geração Manual de Tarefas</h3>
+    </div>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="form-group">
+        <label for="ano_geracao">Ano:</label>
+        <select id="ano_geracao" name="ano" required>
+          <option value="">Selecione o ano</option>
+          <option value="2024">2024</option>
+          <option value="2025" selected>2025</option>
+          <option value="2026">2026</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="mes_geracao">Mês:</label>
+        <select id="mes_geracao" name="mes" required>
+          <option value="">Selecione o mês</option>
+          <option value="1">Janeiro</option>
+          <option value="2">Fevereiro</option>
+          <option value="3">Março</option>
+          <option value="4">Abril</option>
+          <option value="5">Maio</option>
+          <option value="6">Junho</option>
+          <option value="7">Julho</option>
+          <option value="8">Agosto</option>
+          <option value="9">Setembro</option>
+          <option value="10">Outubro</option>
+          <option value="11">Novembro</option>
+          <option value="12">Dezembro</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-warning" onclick="verificarGeracao()">
+          <i class="fas fa-search"></i> Verificar Período
+        </button>
+        <button type="button" class="btn btn-success" onclick="confirmarGeracao()" id="btnGerar" disabled>
+          <i class="fas fa-calendar-plus"></i> Gerar Tarefas
+        </button>
+        <button type="button" class="btn btn-info" onclick="verificarTarefasNovas()" id="btnVerificarNovas">
+          <i class="fas fa-plus-circle"></i> Verificar Tarefas Novas
+        </button>
+      </div>
+      <div id="statusGeracao" class="info-text" style="display: none;"></div>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="card-header">
+      <h3><i class="fas fa-file-import"></i> Importação por Planilha (Excel .xlsx)</h3>
+    </div>
+    <div class="import-forms-container">
+      <form action="{{ url_for('admin.import_usuarios') }}" method="post" enctype="multipart/form-data" class="import-form">
+        <div class="import-form-content">
+          <div class="form-group">
+            <label>Importar Usuários (.xlsx)</label>
+            <input type="file" name="arquivo" accept=".xlsx" required class="file-input">
+            <small class="info-text">Colunas: nome, login, senha, tipo (normal/gerente/admin), setor</small>
+          </div>
+          <div class="form-actions">
+            <a href="{{ url_for('admin.download_template', tipo='usuarios') }}" class="btn btn-secondary">
+              <i class="fas fa-download"></i> Baixar Exemplo
+            </a>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-upload"></i> Importar Usuários
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <form action="{{ url_for('admin.import_empresas') }}" method="post" enctype="multipart/form-data" class="import-form">
+        <div class="import-form-content">
+          <div class="form-group">
+            <label>Importar Empresas (.xlsx)</label>
+            <input type="file" name="arquivo" accept=".xlsx" required class="file-input">
+            <small class="info-text">Colunas: codigo, nome, tributacao (Simples Nacional/Regime Normal)</small>
+          </div>
+          <div class="form-actions">
+            <a href="{{ url_for('admin.download_template', tipo='empresas') }}" class="btn btn-secondary">
+              <i class="fas fa-download"></i> Baixar Exemplo
+            </a>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-upload"></i> Importar Empresas
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <form action="{{ url_for('admin.import_tarefas') }}" method="post" enctype="multipart/form-data" class="import-form">
+        <div class="import-form-content">
+          <div class="form-group">
+            <label>Importar Tarefas (.xlsx)</label>
+            <input type="file" name="arquivo" accept=".xlsx" required class="file-input">
+            <small class="info-text">Colunas: nome, tipo (Mensal/Trimestral/Anual), descricao, tributacao, setor</small>
+          </div>
+          <div class="form-actions">
+            <a href="{{ url_for('admin.download_template', tipo='tarefas') }}" class="btn btn-secondary">
+              <i class="fas fa-download"></i> Baixar Exemplo
+            </a>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-upload"></i> Importar Tarefas
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="card-header">
+      <h3><i class="fas fa-user-plus"></i> Cadastrar Usuário</h3>
+    </div>
+    <form action="{{ url_for('admin.create_user') }}" method="post" class="form-grid">
+      <div class="form-group">
+        <label for="u_nome">Nome</label>
+        <input id="u_nome" name="nome" type="text" required>
+      </div>
+      <div class="form-group">
+        <label for="u_login">Login</label>
+        <input id="u_login" name="login" type="text" required>
+      </div>
+      <div class="form-group">
+        <label for="u_senha">Senha</label>
+        <input id="u_senha" name="senha" type="password" required>
+      </div>
+      <div class="form-group">
+        <label for="u_tipo">Tipo</label>
+        <select id="u_tipo" name="tipo" required>
+          <option value="normal">Normal</option>
+          <option value="gerente">Gerente</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="u_setor">Setor</label>
+        <select id="u_setor" name="setor_id">
+          {% for s in setores %}
+          <option value="{{ s.id }}">{{ s.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Salvar Usuário</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="content-card">
+    <div class="card-header">
+      <h3><i class="fas fa-building"></i> Cadastrar Empresa</h3>
+    </div>
+    <form action="{{ url_for('admin.create_company') }}" method="post" class="form-grid">
+      <div class="form-group">
+        <label for="e_codigo">Código</label>
+        <input id="e_codigo" name="codigo" type="text" required>
+      </div>
+      <div class="form-group">
+        <label for="e_nome">Nome</label>
+        <input id="e_nome" name="nome" type="text" required>
+      </div>
+      <div class="form-group">
+        <label for="e_trib">Tributação</label>
+        <select id="e_trib" name="tributacao_id" required>
+          {% for t in tributacoes %}
+          <option value="{{ t.id }}">{{ t.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Salvar Empresa</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="content-card">
+    <div class="card-header">
+      <h3>Usuários</h3>
+    </div>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr><th>Nome</th><th>Login</th><th>Tipo</th><th>Setor</th><th>Status</th><th>Ações</th></tr>
+        </thead>
+        <tbody>
+          {% for u in usuarios %}
+          <tr>
+            <td>{{ u.nome }}</td>
+            <td>{{ u.login }}</td>
+            <td>{{ u.tipo|capitalize }}</td>
+            <td>{% set s = setores|selectattr('id','equalto',u.setor_id)|first %}{{ s.nome if s else '-' }}</td>
+            <td>
+              <span class="status-badge {{ 'status-active' if u.ativo else 'status-inactive' }}">{{ 'Ativo' if u.ativo else 'Inativo' }}</span>
+            </td>
+            <td>
+              <div class="card-actions">
+                <form action="{{ url_for('admin.toggle_user', user_id=u.id) }}" method="post" style="display: inline;">
+                  <button type="submit" class="btn {{ 'btn-secondary' if u.ativo else 'btn-primary' }}">{{ 'Desativar' if u.ativo else 'Ativar' }}</button>
+                </form>
+                <button type="button" class="btn btn-warning" onclick="showChangePasswordModal({{ u.id }}, '{{ u.nome }}', '{{ u.login }}')">
+                  <i class="fas fa-key"></i> Alterar Senha
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="card-header">
+      <h3>Empresas</h3>
+    </div>
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr><th>Código</th><th>Nome</th><th>Tributação</th><th>Status</th><th>Ações</th></tr>
+        </thead>
+        <tbody>
+          {% for e in empresas %}
+          <tr>
+            <td>{{ e.codigo }}</td>
+            <td>{{ e.nome }}</td>
+            <td>{% set tr = tributacoes|selectattr('id','equalto',e.tributacao_id)|first %}{{ tr.nome if tr else '-' }}</td>
+            <td>
+              <span class="status-badge {{ 'status-active' if e.ativo else 'status-inactive' }}">{{ 'Ativa' if e.ativo else 'Inativa' }}</span>
+            </td>
+            <td>
+              <div class="card-actions">
+                <form action="{{ url_for('admin.toggle_company', empresa_id=e.id) }}" method="post" style="display: inline;">
+                  <button type="submit" class="btn {{ 'btn-secondary' if e.ativo else 'btn-primary' }}">{{ 'Desativar' if e.ativo else 'Ativar' }}</button>
+                </form>
+                <button type="button" class="btn btn-info" onclick="showChangeTributacaoModal({{ e.id }}, '{{ e.nome }}', {{ e.tributacao_id }}, '{{ tr.nome if tr else 'N/A' }}')">
+                  <i class="fas fa-exchange-alt"></i> Alterar Tributação
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Modal para Alterar Senha -->
+<div id="changePasswordModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-key"></i> Alterar Senha do Usuário</h3>
+      <span class="close" onclick="closeChangePasswordModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>Usuário:</strong> <span id="password-user-name"></span><br>
+        <strong>Login:</strong> <span id="password-user-login"></span>
+      </div>
+      <form id="changePasswordForm" action="{{ url_for('admin.change_password') }}" method="post">
+        <input type="hidden" id="password-user-id" name="user_id">
+        <div class="form-group">
+          <label for="new_password">Nova Senha:</label>
+          <input type="password" id="new_password" name="new_password" required minlength="6" placeholder="Digite a nova senha (mínimo 6 caracteres)">
+        </div>
+        <div class="form-group">
+          <label for="confirm_password">Confirmar Senha:</label>
+          <input type="password" id="confirm_password" name="confirm_password" required minlength="6" placeholder="Digite a senha novamente">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-save"></i> Salvar Nova Senha
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Alterar Tributação -->
+<div id="changeTributacaoModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-exchange-alt"></i> Alterar Tributação da Empresa</h3>
+      <span class="close" onclick="closeChangeTributacaoModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>Empresa:</strong> <span id="tributacao-empresa-nome"></span><br>
+        <strong>Tributação Atual:</strong> <span id="tributacao-atual"></span>
+      </div>
+      
+      <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>⚠️ Atenção!</strong> Ao alterar a tributação, será necessário refazer os responsáveis pelas tarefas, pois existem tarefas específicas para cada tipo de tributação.
+      </div>
+      
+      <form id="changeTributacaoForm" action="{{ url_for('admin.change_tributacao') }}" method="post">
+        <input type="hidden" id="tributacao-empresa-id" name="empresa_id">
+        <div class="form-group">
+          <label for="nova_tributacao">Nova Tributação:</label>
+          <select id="nova_tributacao" name="nova_tributacao_id" required>
+            <option value="">Selecione a nova tributação</option>
+            {% for t in tributacoes %}
+            <option value="{{ t.id }}">{{ t.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="confirmar_alteracao" name="confirmar_alteracao" required>
+            Confirmo que entendo que será necessário refazer os responsáveis pelas tarefas
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-save"></i> Alterar Tributação
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeChangeTributacaoModal()">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmação para Geração de Tarefas -->
+<div id="confirmacaoModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Geração de Tarefas</h3>
+      <span class="close" onclick="fecharModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Atenção!</strong> Esta ação irá gerar tarefas para o período selecionado.
+      </div>
+      <div id="detalhesGeracao">
+        <p><strong>Período:</strong> <span id="periodoSelecionado"></span></p>
+        <p><strong>Relacionamentos ativos:</strong> <span id="relacionamentosAtivos"></span></p>
+        <p><strong>Períodos existentes:</strong> <span id="periodosExistentes"></span></p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-success" onclick="executarGeracao()">
+          <i class="fas fa-check"></i> Confirmar e Gerar
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="fecharModal()">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmação para Tarefas Novas -->
+<div id="tarefasNovasModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-plus-circle"></i> Verificar e Adicionar Tarefas Novas</h3>
+      <span class="close" onclick="fecharModalTarefasNovas()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>Informação!</strong> Esta ação irá verificar se há novas tarefas vinculadas que ainda não foram criadas para o período selecionado.
+      </div>
+      <div id="detalhesTarefasNovas">
+        <p><strong>Período:</strong> <span id="periodoTarefasNovas"></span></p>
+        <p><strong>Total de relacionamentos:</strong> <span id="totalRelacionamentos"></span></p>
+        <p><strong>Tarefas já existentes:</strong> <span id="tarefasExistentes"></span></p>
+        <p><strong>Novas tarefas a criar:</strong> <span id="novasTarefas"></span></p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-success" onclick="executarGeracaoTarefasNovas()" id="btnConfirmarTarefasNovas">
+        <i class="fas fa-plus-circle"></i> Adicionar Tarefas Novas
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="fecharModalTarefasNovas()">
+        Cancelar
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let dadosGeracao = null;
+
+// Funções para modal de alterar senha
+function showChangePasswordModal(userId, userName, userLogin) {
+  document.getElementById('password-user-id').value = userId;
+  document.getElementById('password-user-name').textContent = userName;
+  document.getElementById('password-user-login').textContent = userLogin;
+  document.getElementById('changePasswordModal').style.display = 'block';
+  
+  // Limpar campos
+  document.getElementById('new_password').value = '';
+  document.getElementById('confirm_password').value = '';
+}
+
+function closeChangePasswordModal() {
+  document.getElementById('changePasswordModal').style.display = 'none';
+  document.getElementById('new_password').value = '';
+  document.getElementById('confirm_password').value = '';
+}
+
+// Validação de senha
+document.getElementById('changePasswordForm').addEventListener('submit', function(e) {
+  const newPassword = document.getElementById('new_password').value;
+  const confirmPassword = document.getElementById('confirm_password').value;
+  
+  if (newPassword !== confirmPassword) {
+    e.preventDefault();
+    alert('As senhas não coincidem. Por favor, verifique e tente novamente.');
+    return false;
+  }
+  
+  if (newPassword.length < 6) {
+    e.preventDefault();
+    alert('A senha deve ter pelo menos 6 caracteres.');
+    return false;
+  }
+  
+  // Confirmar alteração
+  if (!confirm('Tem certeza que deseja alterar a senha deste usuário?')) {
+    e.preventDefault();
+    return false;
+  }
+});
+
+// Funções para modal de alterar tributação
+function showChangeTributacaoModal(empresaId, empresaNome, tributacaoAtualId, tributacaoAtualNome) {
+  document.getElementById('tributacao-empresa-id').value = empresaId;
+  document.getElementById('tributacao-empresa-nome').textContent = empresaNome;
+  document.getElementById('tributacao-atual').textContent = tributacaoAtualNome;
+  document.getElementById('changeTributacaoModal').style.display = 'block';
+  
+  // Limpar campos
+  document.getElementById('nova_tributacao').value = '';
+  document.getElementById('confirmar_alteracao').checked = false;
+  
+  // Remover a tributação atual das opções
+  const select = document.getElementById('nova_tributacao');
+  const options = select.querySelectorAll('option');
+  options.forEach(option => {
+    if (option.value == tributacaoAtualId) {
+      option.style.display = 'none';
+    } else {
+      option.style.display = 'block';
+    }
+  });
+}
+
+function closeChangeTributacaoModal() {
+  document.getElementById('changeTributacaoModal').style.display = 'none';
+  document.getElementById('nova_tributacao').value = '';
+  document.getElementById('confirmar_alteracao').checked = false;
+  
+  // Mostrar todas as opções novamente
+  const select = document.getElementById('nova_tributacao');
+  const options = select.querySelectorAll('option');
+  options.forEach(option => {
+    option.style.display = 'block';
+  });
+}
+
+// Validação do formulário de tributação
+document.getElementById('changeTributacaoForm').addEventListener('submit', function(e) {
+  const novaTributacao = document.getElementById('nova_tributacao').value;
+  const confirmacao = document.getElementById('confirmar_alteracao').checked;
+  
+  if (!novaTributacao) {
+    e.preventDefault();
+    alert('Por favor, selecione uma nova tributação.');
+    return false;
+  }
+  
+  if (!confirmacao) {
+    e.preventDefault();
+    alert('Por favor, confirme que entende sobre a necessidade de refazer os responsáveis pelas tarefas.');
+    return false;
+  }
+  
+  // Confirmar alteração
+  if (!confirm('Tem certeza que deseja alterar a tributação desta empresa? Esta ação pode afetar as tarefas existentes.')) {
+    e.preventDefault();
+    return false;
+  }
+});
+
+function verificarGeracao() {
+  const ano = document.getElementById('ano_geracao').value;
+  const mes = document.getElementById('mes_geracao').value;
+  
+  if (!ano || !mes) {
+    alert('Por favor, selecione o ano e o mês.');
+    return;
+  }
+  
+  const mesNome = document.getElementById('mes_geracao').selectedOptions[0].text;
+  const periodo = `${mesNome}/${ano}`;
+  
+  // Mostrar loading
+  const statusDiv = document.getElementById('statusGeracao');
+  statusDiv.style.display = 'block';
+  statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando período...';
+  
+  // Fazer requisição para verificar
+  fetch(`/api/tarefas-auto/verificar-geracao?ano=${ano}&mes=${mes}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Simular verificação para o período específico
+      const periodoLabel = `${ano}-${mes.padStart(2, '0')}`;
+      
+      statusDiv.innerHTML = `
+        <div class="alert alert-info">
+          <strong>Período:</strong> ${periodo}<br>
+          <strong>Relacionamentos ativos:</strong> ${data.relacionamentos_ativos}<br>
+          <strong>Status:</strong> ${data.periodos_existentes > 0 ? 'Já possui tarefas geradas' : 'Pronto para gerar'}
+        </div>
+      `;
+      
+      // Habilitar botão se não existem períodos
+      const btnGerar = document.getElementById('btnGerar');
+      if (data.periodos_existentes === 0 && data.relacionamentos_ativos > 0) {
+        btnGerar.disabled = false;
+        dadosGeracao = {
+          ano: parseInt(ano),
+          mes: parseInt(mes),
+          periodo: periodo,
+          relacionamentos_ativos: data.relacionamentos_ativos,
+          periodos_existentes: data.periodos_existentes
+        };
+      } else {
+        btnGerar.disabled = true;
+        dadosGeracao = null;
+      }
+    } else {
+      statusDiv.innerHTML = `<div class="alert alert-danger">Erro: ${data.message}</div>`;
+      document.getElementById('btnGerar').disabled = true;
+    }
+  })
+  .catch(error => {
+    statusDiv.innerHTML = `<div class="alert alert-danger">Erro ao verificar: ${error.message}</div>`;
+    document.getElementById('btnGerar').disabled = true;
+  });
+}
+
+function confirmarGeracao() {
+  if (!dadosGeracao) {
+    alert('Por favor, verifique o período primeiro.');
+    return;
+  }
+  
+  // Preencher modal com dados
+  document.getElementById('periodoSelecionado').textContent = dadosGeracao.periodo;
+  document.getElementById('relacionamentosAtivos').textContent = dadosGeracao.relacionamentos_ativos;
+  document.getElementById('periodosExistentes').textContent = dadosGeracao.periodos_existentes;
+  
+  // Mostrar modal
+  document.getElementById('confirmacaoModal').style.display = 'block';
+}
+
+function executarGeracao() {
+  if (!dadosGeracao) return;
+  
+  // Mostrar loading no modal
+  const modalBody = document.querySelector('#confirmacaoModal .modal-body');
+  modalBody.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Gerando tarefas...</div>';
+  
+  // Fazer requisição para gerar
+  fetch('/api/tarefas-auto/gerar-mes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ano: dadosGeracao.ano,
+      mes: dadosGeracao.mes
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      modalBody.innerHTML = `
+        <div class="alert alert-success">
+          <i class="fas fa-check-circle"></i>
+          <strong>Sucesso!</strong><br>
+          ${data.message}<br>
+          <strong>Tarefas criadas:</strong> ${data.tarefas_criadas}
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" onclick="fecharModal()">Fechar</button>
+        </div>
+      `;
+      
+      // Atualizar status na página principal
+      document.getElementById('statusGeracao').innerHTML = `
+        <div class="alert alert-success">
+          <strong>✅ Tarefas geradas com sucesso!</strong><br>
+          Período: ${data.periodo}<br>
+          Tarefas criadas: ${data.tarefas_criadas}
+        </div>
+      `;
+      
+      // Desabilitar botão novamente
+      document.getElementById('btnGerar').disabled = true;
+      dadosGeracao = null;
+    } else {
+      modalBody.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-circle"></i>
+          <strong>Erro!</strong><br>
+          ${data.message}
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="fecharModal()">Fechar</button>
+        </div>
+      `;
+    }
+  })
+  .catch(error => {
+    modalBody.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i>
+        <strong>Erro!</strong><br>
+        Erro ao gerar tarefas: ${error.message}
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModal()">Fechar</button>
+      </div>
+    `;
+  });
+}
+
+function fecharModal() {
+  document.getElementById('confirmacaoModal').style.display = 'none';
+}
+
+function fecharModalTarefasNovas() {
+  document.getElementById('tarefasNovasModal').style.display = 'none';
+}
+
+let dadosTarefasNovas = null;
+
+function verificarTarefasNovas() {
+  const ano = document.getElementById('ano_geracao').value;
+  const mes = document.getElementById('mes_geracao').value;
+  
+  if (!ano || !mes) {
+    alert('Por favor, selecione o ano e mês.');
+    return;
+  }
+  
+  const statusDiv = document.getElementById('statusGeracao');
+  statusDiv.style.display = 'block';
+  statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Verificando tarefas novas...</div>';
+  
+  fetch('/api/tarefas-auto/gerar-tarefas-periodo', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ano: parseInt(ano),
+      mes: parseInt(mes)
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      statusDiv.innerHTML = `
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i>
+          <strong>Verificação concluída!</strong><br>
+          Período: ${data.periodo}<br>
+          Total de relacionamentos: ${data.total_relacionamentos}<br>
+          Tarefas já existentes: ${data.tarefas_existentes}<br>
+          Novas tarefas encontradas: ${data.tarefas_criadas}
+        </div>
+      `;
+      
+      // Habilitar botão se há novas tarefas
+      const btnVerificarNovas = document.getElementById('btnVerificarNovas');
+      if (data.tarefas_criadas > 0) {
+        dadosTarefasNovas = {
+          ano: parseInt(ano),
+          mes: parseInt(mes),
+          periodo: data.periodo,
+          tarefas_criadas: data.tarefas_criadas,
+          tarefas_existentes: data.tarefas_existentes,
+          total_relacionamentos: data.total_relacionamentos
+        };
+        
+        // Preencher modal com dados
+        document.getElementById('periodoTarefasNovas').textContent = data.periodo;
+        document.getElementById('totalRelacionamentos').textContent = data.total_relacionamentos;
+        document.getElementById('tarefasExistentes').textContent = data.tarefas_existentes;
+        document.getElementById('novasTarefas').textContent = data.tarefas_criadas;
+        
+        // Mostrar modal
+        document.getElementById('tarefasNovasModal').style.display = 'block';
+      } else {
+        alert('Não há novas tarefas para adicionar neste período.');
+        dadosTarefasNovas = null;
+      }
+    } else {
+      statusDiv.innerHTML = `<div class="alert alert-danger">Erro: ${data.message}</div>`;
+      dadosTarefasNovas = null;
+    }
+  })
+  .catch(error => {
+    statusDiv.innerHTML = `<div class="alert alert-danger">Erro ao verificar: ${error.message}</div>`;
+    dadosTarefasNovas = null;
+  });
+}
+
+function executarGeracaoTarefasNovas() {
+  if (!dadosTarefasNovas) return;
+  
+  // Mostrar loading no modal
+  const modalBody = document.querySelector('#tarefasNovasModal .modal-body');
+  modalBody.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Adicionando tarefas novas...</div>';
+  
+  // Fazer requisição para gerar
+  fetch('/api/tarefas-auto/gerar-tarefas-periodo', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      ano: dadosTarefasNovas.ano,
+      mes: dadosTarefasNovas.mes
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      modalBody.innerHTML = `
+        <div class="alert alert-success">
+          <i class="fas fa-check-circle"></i>
+          <strong>Sucesso!</strong><br>
+          ${data.message}<br>
+          <strong>Novas tarefas criadas:</strong> ${data.tarefas_criadas}<br>
+          <strong>Tarefas já existentes:</strong> ${data.tarefas_existentes}
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" onclick="fecharModalTarefasNovas(); verificarTarefasNovas();">
+            Verificar Novamente
+          </button>
+        </div>
+      `;
+    } else {
+      modalBody.innerHTML = `
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-circle"></i>
+          <strong>Erro!</strong><br>
+          Erro ao adicionar tarefas: ${data.message}
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="fecharModalTarefasNovas()">Fechar</button>
+        </div>
+      `;
+    }
+  })
+  .catch(error => {
+    modalBody.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i>
+        <strong>Erro!</strong><br>
+        Erro ao adicionar tarefas: ${error.message}
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModalTarefasNovas()">Fechar</button>
+      </div>
+    `;
+  });
+}
+
+// Fechar modal ao clicar fora dele
+window.onclick = function(event) {
+  const confirmacaoModal = document.getElementById('confirmacaoModal');
+  const tarefasNovasModal = document.getElementById('tarefasNovasModal');
+  const changePasswordModal = document.getElementById('changePasswordModal');
+  const changeTributacaoModal = document.getElementById('changeTributacaoModal');
+  
+  if (event.target == confirmacaoModal) {
+    fecharModal();
+  }
+  
+  if (event.target == tarefasNovasModal) {
+    fecharModalTarefasNovas();
+  }
+  
+  if (event.target == changePasswordModal) {
+    closeChangePasswordModal();
+  }
+  
+  if (event.target == changeTributacaoModal) {
+    closeChangeTributacaoModal();
+  }
+}
+
+// Definir mês atual como padrão
+document.addEventListener('DOMContentLoaded', function() {
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth() + 1;
+  document.getElementById('mes_geracao').value = mesAtual;
+});
+</script>
+
+{% endblock %}

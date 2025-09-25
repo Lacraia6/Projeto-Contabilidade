@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sistema DP & Contabilidade{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-tachometer-alt"></i> Painel do Funcionário</h1>
+    <p>Selecione período e, opcionalmente, filtros adicionais</p>
+    <div class="dashboard-info">
+      <small>Última atualização: <span id="last-update">Carregando...</span></small>
+    </div>
+  </div>
+
+  <!-- Container de Feedback -->
+  <div id="feedback-container" style="display: none;"></div>
+
+  <!-- Filtros -->
+  <form id="filtroDashboard" class="dashboard-filters">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="periodo">Período (MM/AAAA)</label>
+        <input type="text" id="periodo" name="periodo" value="{{ periodo_atual if periodo_atual else '08/2025' }}" 
+               placeholder="Ex: 01/2025" required pattern="[0-9]{2}/[0-9]{4}" 
+               title="Digite o período no formato MM/AAAA">
+        <small class="info-text">Formato: MM/AAAA (ex: 01/2025)</small>
+      </div>
+      <div class="form-group">
+        <label for="empresa">Empresa (opcional)</label>
+        <div class="empresa-search-container multiple-selection">
+          <input type="text" id="empresa-search" placeholder="Digite para buscar empresa..." autocomplete="off">
+          <div id="empresa-results" class="search-results" style="display: none;"></div>
+          <input type="hidden" id="empresa_ids" name="empresa_ids" value="{{ empresa_atual or '' }}">
+          <div id="empresa-selected" class="selected-items-container">
+            {% if empresa_atual %}
+              {% for e in empresas or [] %}
+                {% if e.id == empresa_atual %}
+                  <div class="selected-item">
+                    <span class="selected-item-text">{{ e.nome }}</span>
+                    <button type="button" class="selected-item-remove" onclick="removeEmpresa({{ e.id }}, '{{ e.nome }}')">&times;</button>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <div class="selected-item">
+                <span class="selected-item-text">Todas as empresas</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="tarefa">Tarefa (opcional)</label>
+        <div class="tarefa-search-container multiple-selection">
+          <input type="text" id="tarefa-search" placeholder="Digite para buscar tarefa..." autocomplete="off">
+          <div id="tarefa-results" class="search-results" style="display: none;"></div>
+          <input type="hidden" id="tarefa_ids" name="tarefa_ids" value="{{ tarefa_atual or '' }}">
+          <div id="tarefa-selected" class="selected-items-container">
+            {% if tarefa_atual %}
+              {% for t in tarefas or [] %}
+                {% if t.id == tarefa_atual %}
+                  <div class="selected-item">
+                    <span class="selected-item-text">{{ t.nome }}</span>
+                    <button type="button" class="selected-item-remove" onclick="removeTarefa({{ t.id }}, '{{ t.nome }}')">&times;</button>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <div class="selected-item">
+                <span class="selected-item-text">Todas as tarefas</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" onclick="applyFilters()"><i class="fas fa-filter"></i> Aplicar</button>
+      <button type="button" class="btn btn-secondary" onclick="clearAllFilters()"><i class="fas fa-times"></i> Limpar</button>
+    </div>
+  </form>
+
+  <!-- Métricas -->
+  <div class="dashboard-metrics">
+    <div class="metric-card">
+      <div class="metric-icon pendentes">
+        <i class="fas fa-clock"></i>
+      </div>
+      <div class="metric-content">
+        <div class="metric-value" id="metric-pendentes">{{ resumo.pendentes }}</div>
+        <div class="metric-label">Tarefas Pendentes</div>
+        <div class="metric-description">Aguardando ação</div>
+      </div>
+    </div>
+    
+    <div class="metric-card">
+      <div class="metric-icon fazendo">
+        <i class="fas fa-play"></i>
+      </div>
+      <div class="metric-content">
+        <div class="metric-value" id="metric-fazendo">{{ resumo.fazendo }}</div>
+        <div class="metric-label">Em Andamento</div>
+        <div class="metric-description">Trabalhando agora</div>
+      </div>
+    </div>
+    
+    <div class="metric-card">
+      <div class="metric-icon concluidas">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="metric-content">
+        <div class="metric-value" id="metric-concluidas">{{ resumo.concluidas }}</div>
+        <div class="metric-label">Concluídas</div>
+        <div class="metric-description">Finalizadas no período</div>
+      </div>
+    </div>
+    
+    <div class="metric-card">
+      <div class="metric-icon taxa-conclusao">
+        <i class="fas fa-percentage"></i>
+      </div>
+      <div class="metric-content">
+        <div class="metric-value" id="metric-taxa-conclusao">{{ "%.0f"|format(taxa_conclusao) }}%</div>
+        <div class="metric-label">Taxa de Conclusão</div>
+        <div class="metric-description">Do total de tarefas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela de Tarefas -->
+  <div class="dashboard-table">
+    <h3>Tarefas do Período</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>Tarefa</th>
+            <th>Tipo</th>
+            <th>Status</th>
+            <th>Vencimento</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tarefas-table-body">
+          {% for tarefa in tarefas_list %}
+          <tr>
+            <td>{{ tarefa.empresa_nome }}</td>
+            <td>{{ tarefa.nome }}</td>
+            <td>{{ tarefa.tipo }}</td>
+            <td>
+              {% if tarefa.status == 'concluida' %}
+                <span class="status-badge status-active">Concluída</span>
+              {% elif tarefa.status == 'retificada' %}
+                <span class="status-badge status-warning">Retificada ({{ tarefa.contador_retificacoes }}x)</span>
+                {% if tarefa.data_retificacao %}
+                  <br><small>Retificada em: {{ tarefa.data_retificacao }}</small>
+                {% endif %}
+              {% elif tarefa.status == 'pendente' %}
+                <span class="status-badge status-pending">Pendente</span>
+              {% else %}
+                <span class="status-badge status-inactive">Em Andamento</span>
+              {% endif %}
+            </td>
+            <td>{{ tarefa.vencimento }}</td>
+            <td>
+              {% if tarefa.status == 'pendente' %}
+                <button class="btn btn-success btn-sm" onclick="showConclusaoModal({{ tarefa.periodo_id }}, '{{ tarefa.empresa_nome|e }}', '{{ tarefa.nome|e }}', '{{ tarefa.periodo_label|e }}')">Concluir</button>
+              {% elif tarefa.status == 'concluida' %}
+                <button class="btn btn-warning btn-sm" onclick="showRetificationModal({{ tarefa.periodo_id }}, '{{ tarefa.empresa_nome|e }}', '{{ tarefa.nome|e }}', '{{ tarefa.periodo_label|e }}')">Retificar</button>
+              {% elif tarefa.status == 'retificada' %}
+                <button class="btn btn-warning btn-sm" onclick="showRetificationModal({{ tarefa.periodo_id }}, '{{ tarefa.empresa_nome|e }}', '{{ tarefa.nome|e }}', '{{ tarefa.periodo_label|e }}')">Retificar Novamente</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Modal de Confirmação de Conclusão -->
+<div id="modalConfirmarConclusao" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Confirmar Conclusão</h3>
+      <span class="close" onclick="closeModal('modalConfirmarConclusao')">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p>Tem certeza que deseja marcar esta tarefa como concluída?</p>
+      <div class="task-details">
+        <p><strong>Empresa:</strong> <span id="modalEmpresa"></span></p>
+        <p><strong>Tarefa:</strong> <span id="modalTarefa"></span></p>
+        <p><strong>Período:</strong> <span id="modalPeriodo"></span></p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modalConfirmarConclusao')">Cancelar</button>
+      <button type="button" class="btn btn-success" onclick="confirmarConclusao()">Confirmar Conclusão</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmação de Retificação -->
+<div id="modalConfirmarRetificacao" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Confirmar Retificação</h3>
+      <span class="close" onclick="closeModal('modalConfirmarRetificacao')">&times;</span>
+    </div>
+    <div class="modal-body">
+      <p>Tem certeza que deseja retificar esta tarefa?</p>
+      <div class="task-details">
+        <p><strong>Empresa:</strong> <span id="modalRetEmpresa"></span></p>
+        <p><strong>Tarefa:</strong> <span id="modalRetTarefa"></span></p>
+        <p><strong>Período:</strong> <span id="modalRetPeriodo"></span></p>
+      </div>
+      <div class="form-group">
+        <label for="motivoRetificacao">Motivo da Retificação:</label>
+        <textarea id="motivoRetificacao" rows="3" placeholder="Descreva o motivo da retificação..." required></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modalConfirmarRetificacao')">Cancelar</button>
+      <button type="button" class="btn btn-warning" onclick="confirmarRetificacao()">Confirmar Retificação</button>
+    </div>
+  </div>
+</div>
+
+<!-- JavaScript centralizado no script.js -->
+{% endblock %}

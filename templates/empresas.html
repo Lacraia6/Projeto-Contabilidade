@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+{% block title %}Empresas{% endblock %}
+{% block content %}
+<section id="empresas" class="tab-content active">
+  <div class="page-header">
+    <h1>Cadastro de Empresas</h1>
+    <p>Gerencie todas as empresas do sistema</p>
+  </div>
+  
+  <!-- Formulário de Cadastro -->
+  <div class="content-card">
+    <div class="card-header">
+      <h3>Nova Empresa</h3>
+    </div>
+    <form action="{{ url_for('empresas.cadastrar_empresa') }}" id="empresaForm" class="form-grid" method="post">
+      <div class="form-group">
+        <label for="empresaId">ID da Empresa</label>
+        <input style="height: 43px;" name="empresa_id" type="number" id="empresaId" placeholder="Digite o ID" required>
+      </div>
+      <div class="form-group">
+        <label for="empresaNome">Nome da Empresa</label>
+        <input name="empresa_nome" type="text" id="empresaNome" placeholder="Digite o nome completo" required maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="empresaCnpj">CNPJ</label>
+        <input name="empresa_cnpj" type="text" id="empresaCnpj" placeholder="XX.XXX.XXX/XXXX-XX" maxlength="14" minlength="14" pattern="\d{14}">
+        <input type="hidden" name="tipo" value="matriz">
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Cadastrar Empresa
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Dashboard de Estatísticas -->
+  <div class="content-card">
+    <div class="card-header">
+      <h3>Estatísticas Gerais</h3>
+    </div>
+    <div class="dashboard-grid">
+      <div class="metric-card">
+        <div class="metric-icon empresas">
+          <i class="fas fa-building"></i>
+        </div>
+        <div class="metric-content">
+          <h3>Total de Empresas</h3>
+          <div class="metric-value">{{ empresas|length }}</div>
+          <div class="metric-footer">Matrizes cadastradas</div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon contas">
+          <i class="fas fa-sitemap"></i>
+        </div>
+        <div class="metric-content">
+          <h3>Total de Filiais</h3>
+          <div class="metric-value">
+            {% set total_filiais = 0 %}
+            {% for empresa in empresas %}
+              {% if empresa.filiais %}
+                {% set total_filiais = total_filiais + empresa.filiais|length %}
+              {% endif %}
+            {% endfor %}
+            {{ total_filiais }}
+          </div>
+          <div class="metric-footer">Filiais vinculadas</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon fazendo">
+          <i class="fas fa-calendar-alt"></i>
+        </div>
+        <div class="metric-content">
+          <h3>Períodos Ativos</h3>
+          <div class="metric-value">
+            {% set total_periodos = 0 %}
+            {% for empresa in empresas %}
+              {% if empresa.periodos %}
+                {% set total_periodos = total_periodos + empresa.periodos|length %}
+              {% endif %}
+            {% endfor %}
+            {{ total_periodos }}
+          </div>
+          <div class="metric-footer">Períodos criados</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Lista de Empresas -->
+  <div class="content-card">
+    <div class="card-header">
+      <h3>Empresas Cadastradas</h3>
+    </div>
+
+    {% if empresas|length > 0 %}
+    <ul id="empresaLista" style="list-style: none; padding: 0;">
+      {% for empresa in empresas %}
+      <li class="empresa-item">
+        <div class="empresa-header">
+          <strong class="empresa-nome">{{ empresa.empresa_nome }}</strong>
+          <span class="status-badge status-active">ID: {{ empresa.empresa_id }}</span>
+        </div>
+        <div class="empresa-details">
+          <span class="empresa-cnpj">CNPJ: {{ empresa.empresa_cnpj }}</span>
+        </div>
+
+        <!-- Cards de Informações Rápidas -->
+        <div class="dashboard-grid" style="margin: 16px 0; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <div class="metric-card" style="padding: 16px; cursor: pointer;" onclick="toggleForm('contas-{{ empresa.id }}')">
+            <div class="metric-icon pendentes" style="width: 40px; height: 40px; font-size: 18px;">
+              <i class="fas fa-list-alt"></i>
+            </div>
+            <div class="metric-content">
+              <h3>Contas Pendentes</h3>
+              <div class="metric-value" style="font-size: 1.5rem;">{{ empresa.contas_pendentes|length if empresa.contas_pendentes else 0 }}</div>
+            </div>
+          </div>
+
+          <div class="metric-card" style="padding: 16px; cursor: pointer;" onclick="toggleForm('periodos-disponiveis-{{ empresa.id }}')">
+            <div class="metric-icon fazendo" style="width: 40px; height: 40px; font-size: 18px;">
+              <i class="fas fa-calendar-check"></i>
+            </div>
+            <div class="metric-content">
+              <h3>Períodos</h3>
+              <div class="metric-value" style="font-size: 1.5rem;">{{ empresa.periodos|length if empresa.periodos else 0 }}</div>
+            </div>
+          </div>
+
+          {% if empresa.filiais and empresa.filiais|length > 0 %}
+          <div class="metric-card" style="padding: 16px; cursor: pointer;" onclick="toggleForm('filiais-{{ empresa.id }}')">
+            <div class="metric-icon contas" style="width: 40px; height: 40px; font-size: 18px;">
+              <i class="fas fa-sitemap"></i>
+            </div>
+            <div class="metric-content">
+              <h3>Filiais</h3>
+              <div class="metric-value" style="font-size: 1.5rem;">{{ empresa.filiais|length }}</div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Ações Principais -->
+        <div class="form-grid" style="margin-top: 16px;">
+          <button type="button" class="btn btn-primary" onclick="toggleForm('periodo-{{ empresa.id }}')">
+            <i class="fas fa-plus"></i> Criar Período
+            <span id="toggle-icon-periodo-{{ empresa.id }}">+</span>
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="toggleForm('form-filial-{{ empresa.id }}')">
+            <i class="fas fa-building"></i> Nova Filial
+            <span id="toggle-icon-form-filial-{{ empresa.id }}">+</span>
+          </button>
+        </div>
+
+        <!-- Seção de Contas Pendentes -->
+        <div id="contas-{{ empresa.id }}" class="hidden" style="margin-top: 16px;">
+          <div class="content-card" style="background: var(--bg-primary);">
+            <div class="card-header">
+              <h3><i class="fas fa-list-alt"></i> Contas Pendentes</h3>
+            </div>
+            {% if empresa.contas_pendentes and empresa.contas_pendentes|length > 0 %}
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Nome da Conta</th>
+                    <th>Data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for conta in empresa.contas_pendentes %}
+                  <tr>
+                    <td><strong>{{ conta.conta_nome }}</strong></td>
+                    <td><span class="status-badge status-pending">{{ conta.conta_data }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+              <i class="fas fa-check-circle" style="font-size: 3rem; margin-bottom: 16px; display: block; color: var(--success-color);"></i>
+              <strong>Nenhuma conta pendente</strong>
+              <p>Todas as contas estão em dia!</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Seção de Períodos -->
+        <div id="periodos-disponiveis-{{ empresa.id }}" class="hidden" style="margin-top: 16px;">
+          <div class="content-card" style="background: var(--bg-primary);">
+            <div class="card-header">
+              <h3><i class="fas fa-calendar-alt"></i> Períodos Disponíveis</h3>
+            </div>
+            {% if empresa.periodos and empresa.periodos|length > 0 %}
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Período</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for periodo in empresa.periodos %}
+                  <tr>
+                    <td><strong>{{ periodo.empresa_data }}</strong></td>
+                    <td><span class="status-badge status-active">{{ periodo.status }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+              <i class="fas fa-calendar-plus" style="font-size: 3rem; margin-bottom: 16px; display: block; color: var(--border-color);"></i>
+              <strong>Nenhum período criado</strong>
+              <p>Crie um período para começar</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Formulário de Criar Período -->
+        <div id="periodo-{{ empresa.id }}" class="hidden" style="margin-top: 16px;">
+          <div class="content-card" style="background: var(--bg-primary);">
+            <div class="card-header">
+              <h3><i class="fas fa-plus"></i> Criar Novo Período</h3>
+            </div>
+            <form action="{{ url_for('empresas.criar_periodo') }}" method="post" class="form-grid">
+              <input type="hidden" name="empresa_id" value="{{ empresa.empresa_id }}">
+              <div class="form-group">
+                <label for="mes_{{ empresa.empresa_id }}">Mês</label>
+                <select id="mes_{{ empresa.empresa_id }}" name="mes" required>
+                  <option value="">Selecione o mês</option>
+                  <option value="01">Janeiro</option>
+                  <option value="02">Fevereiro</option>
+                  <option value="03">Março</option>
+                  <option value="04">Abril</option>
+                  <option value="05">Maio</option>
+                  <option value="06">Junho</option>
+                  <option value="07">Julho</option>
+                  <option value="08">Agosto</option>
+                  <option value="09">Setembro</option>
+                  <option value="10">Outubro</option>
+                  <option value="11">Novembro</option>
+                  <option value="12">Dezembro</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="ano_{{ empresa.empresa_id }}">Ano</label>
+                <select id="ano_{{ empresa.empresa_id }}" name="ano" required>
+                  <option value="">Selecione o ano</option>
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save"></i> Criar Período
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Seção de Filiais -->
+        {% if empresa.filiais and empresa.filiais|length > 0 %}
+        <div id="filiais-{{ empresa.id }}" class="hidden" style="margin-top: 16px;">
+          <div class="content-card" style="background: var(--bg-primary);">
+            <div class="card-header">
+              <h3><i class="fas fa-sitemap"></i> Filiais da Empresa</h3>
+            </div>
+            {% for filial in empresa.filiais %}
+            <div class="empresa-item" style="margin-bottom: 16px;">
+              <div class="empresa-header">
+                <strong class="empresa-nome">{{ filial.empresa_nome }}</strong>
+                <span class="status-badge status-pending">ID: {{ filial.empresa_id }}</span>
+              </div>
+              <div class="empresa-details">
+                <span class="empresa-cnpj">CNPJ: {{ filial.empresa_cnpj }}</span>
+              </div>
+
+              <!-- Contas da Filial -->
+              <button type="button" class="btn btn-outline" onclick="toggleForm('contas-filial-{{ filial.id }}')">
+                <i class="fas fa-list"></i> Ver Contas ({{ filial.contas_pendentes|length if filial.contas_pendentes else 0 }})
+                <span id="toggle-icon-contas-filial-{{ filial.id }}">+</span>
+              </button>
+              
+              <div id="contas-filial-{{ filial.id }}" class="hidden" style="margin-top: 12px;">
+                <div class="content-card" style="background: var(--bg-secondary);">
+                  {% if filial.contas_pendentes and filial.contas_pendentes|length > 0 %}
+                  <div class="table-container">
+                    <table class="data-table">
+                      <thead>
+                        <tr>
+                          <th>Nome da Conta</th>
+                          <th>Data</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for conta in filial.contas_pendentes %}
+                        <tr>
+                          <td><strong>{{ conta.conta_nome }}</strong></td>
+                          <td><span class="status-badge status-pending">{{ conta.conta_data }}</span></td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                  {% else %}
+                  <div style="text-align: center; padding: 20px; color: var(--text-muted);">
+                    <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+                    <strong>Nenhuma conta pendente</strong>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Formulário de Cadastrar Filial -->
+        <div id="form-filial-{{ empresa.id }}" class="hidden" style="margin-top: 16px;">
+          <div class="content-card" style="background: var(--bg-primary);">
+            <div class="card-header">
+              <h3><i class="fas fa-building"></i> Cadastrar Nova Filial</h3>
+            </div>
+            <form action="{{ url_for("empresas.cadastrar_empresa") }}" method="POST" class="form-grid">
+              <input type="hidden" name="matriz_id" value="{{ empresa.empresa_id }}">
+              <input type="hidden" name="tipo" value="filial">
+              <div class="form-group">
+                <label for="empresa_id_{{ empresa.id }}">ID da Filial</label>
+                <input type="text" id="empresa_id_{{ empresa.id }}" name="empresa_id" required>
+              </div>
+              <div class="form-group">
+                <label for="nome_filial_{{ empresa.id }}">Nome da Filial</label>
+                <input type="text" id="nome_filial_{{ empresa.id }}" name="empresa_nome" required>
+              </div>
+              <div class="form-group">
+                <label for="cnpj_filial_{{ empresa.id }}">CNPJ da Filial</label>
+                <input type="text" id="cnpj_filial_{{ empresa.id }}" name="empresa_cnpj" required>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save"></i> Cadastrar Filial
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div style="text-align: center; padding: 80px 20px; color: var(--text-muted);">
+      <i class="fas fa-building" style="font-size: 4rem; margin-bottom: 24px; display: block; color: var(--border-color);"></i>
+      <h3 style="color: var(--text-secondary); margin-bottom: 12px;">Nenhuma empresa cadastrada</h3>
+      <p>Comece cadastrando sua primeira empresa usando o formulário acima</p>
+      <button type="button" class="btn btn-primary" style="margin-top: 20px;" onclick="document.getElementById('empresaId').focus()">
+        <i class="fas fa-plus"></i> Cadastrar Primeira Empresa
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
