@@ -425,13 +425,13 @@ document.getElementById('changePasswordForm').addEventListener('submit', functio
   
   if (newPassword !== confirmPassword) {
     e.preventDefault();
-    alert('As senhas não coincidem. Por favor, verifique e tente novamente.');
+    showErrorAlert('As senhas não coincidem. Por favor, verifique e tente novamente.', 'Erro de Validação');
     return false;
   }
   
   if (newPassword.length < 6) {
     e.preventDefault();
-    alert('A senha deve ter pelo menos 6 caracteres.');
+    showWarningAlert('A senha deve ter pelo menos 6 caracteres.', 'Senha Inválida');
     return false;
   }
   
@@ -485,13 +485,13 @@ document.getElementById('changeTributacaoForm').addEventListener('submit', funct
   
   if (!novaTributacao) {
     e.preventDefault();
-    alert('Por favor, selecione uma nova tributação.');
+    showWarningAlert('Por favor, selecione uma nova tributação.', 'Seleção Obrigatória');
     return false;
   }
   
   if (!confirmacao) {
     e.preventDefault();
-    alert('Por favor, confirme que entende sobre a necessidade de refazer os responsáveis pelas tarefas.');
+    showWarningAlert('Por favor, confirme que entende sobre a necessidade de refazer os responsáveis pelas tarefas.', 'Confirmação Necessária');
     return false;
   }
   
@@ -507,7 +507,7 @@ function verificarGeracao() {
   const mes = document.getElementById('mes_geracao').value;
   
   if (!ano || !mes) {
-    alert('Por favor, selecione o ano e o mês.');
+    showWarningAlert('Por favor, selecione o ano e o mês.', 'Seleção Obrigatória');
     return;
   }
   
@@ -568,7 +568,7 @@ function verificarGeracao() {
 
 function confirmarGeracao() {
   if (!dadosGeracao) {
-    alert('Por favor, verifique o período primeiro.');
+    showWarningAlert('Por favor, verifique o período primeiro.', 'Período Inválido');
     return;
   }
   
@@ -668,7 +668,7 @@ function verificarTarefasNovas() {
   const mes = document.getElementById('mes_geracao').value;
   
   if (!ano || !mes) {
-    alert('Por favor, selecione o ano e mês.');
+    showWarningAlert('Por favor, selecione o ano e mês.', 'Seleção Obrigatória');
     return;
   }
   
@@ -721,7 +721,7 @@ function verificarTarefasNovas() {
         // Mostrar modal
         document.getElementById('tarefasNovasModal').style.display = 'block';
       } else {
-        alert('Não há novas tarefas para adicionar neste período.');
+        showInfoAlert('Não há novas tarefas para adicionar neste período.', 'Informação');
         dadosTarefasNovas = null;
       }
     } else {

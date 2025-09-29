@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Relatórios - Tarefas Anuais{% endblock %}
+{% block content %}
+<section id="relatorios-anuais" class="tab-content active">
+  <div class="page-header">
+    <h1><i class="fas fa-calendar-alt"></i> Relatórios - Tarefas Anuais</h1>
+    <p>Relatórios específicos para tarefas anuais</p>
+  </div>
+
+  <!-- Filtros -->
+  <div class="content-card">
+    <div class="card-header">
+      <h3><i class="fas fa-filter"></i> Filtros</h3>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="empresa_id">Empresa:</label>
+        <select id="empresa_id" name="empresa_id">
+          <option value="">Todas as empresas</option>
+          {% for id, nome in empresas_opts %}
+          <option value="{{ id }}">{{ nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="funcionario_id">Funcionário:</label>
+        <select id="funcionario_id" name="funcionario_id">
+          <option value="">Todos os funcionários</option>
+          {% for id, nome in funcionarios_opts %}
+          <option value="{{ id }}">{{ nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="tarefa_id">Tarefa:</label>
+        <select id="tarefa_id" name="tarefa_id">
+          <option value="">Todas as tarefas</option>
+          {% for id, nome in tarefas_opts %}
+          <option value="{{ id }}">{{ nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="ano">Ano:</label>
+        <select id="ano" name="ano">
+          <option value="2024">2024</option>
+          <option value="2025" selected>2025</option>
+          <option value="2026">2026</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary" onclick="gerarRelatorioAnuais()">
+        <i class="fas fa-search"></i> Gerar Relatório
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="limparFiltrosAnuais()">
+        <i class="fas fa-eraser"></i> Limpar Filtros
+      </button>
+    </div>
+  </div>
+
+  <!-- Resultados -->
+  <div class="content-card" id="resultados-anuais" style="display: none;">
+    <div class="card-header">
+      <h3><i class="fas fa-chart-bar"></i> Resultados do Relatório</h3>
+      <div class="card-actions">
+        <button type="button" class="btn btn-success" onclick="imprimirRelatorioAnuais()">
+          <i class="fas fa-print"></i> Imprimir
+        </button>
+      </div>
+    </div>
+    
+    <div class="table-container">
+      <table class="data-table" id="tabela-relatorio-anuais">
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>Funcionário</th>
+            <th>Tarefa</th>
+            <th>Ano</th>
+            <th>Status</th>
+            <th id="dataHeaderAnuais">Data de Conclusão</th>
+            <th>Retificações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-anuais-body">
+          <!-- Dados serão carregados via JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script>
+// Função para gerar relatório de tarefas anuais
+function gerarRelatorioAnuais() {
+  const empresaId = document.getElementById('empresa_id').value;
+  const funcionarioId = document.getElementById('funcionario_id').value;
+  const tarefaId = document.getElementById('tarefa_id').value;
+  const ano = document.getElementById('ano').value;
+  
+  // Construir URL com parâmetros
+  let url = '/relatorios/api/dados-anuais?';
+  const params = [];
+  
+  if (empresaId) params.push(`empresa_id=${empresaId}`);
+  if (funcionarioId) params.push(`funcionario_id=${funcionarioId}`);
+  if (tarefaId) params.push(`tarefa_id=${tarefaId}`);
+  if (ano) params.push(`ano=${ano}`);
+  
+  url += params.join('&');
+  
+  // Fazer requisição
+  fetch(url, {
+    credentials: 'same-origin'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      exibirResultadosAnuais(data.dados);
+    } else {
+      showErrorAlert('Erro ao gerar relatório: ' + data.message, 'Erro no Relatório');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    showErrorAlert('Erro ao gerar relatório', 'Erro');
+  });
+}
+
+// Função para exibir resultados
+function exibirResultadosAnuais(dados) {
+  const tbody = document.getElementById('tabela-anuais-body');
+  const section = document.getElementById('resultados-anuais');
+  
+  if (dados.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma tarefa anual encontrada</td></tr>';
+  } else {
+    tbody.innerHTML = dados.map(item => {
+      const statusClass = getStatusClass(item.status);
+      const statusText = getStatusText(item.status, item.contador_retificacoes);
+      
+      return `
+        <tr>
+          <td>${item.empresa}</td>
+          <td>${item.funcionario}</td>
+          <td>${item.tarefa}</td>
+          <td>${item.periodo}</td>
+          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td>${item.data_final || '-'}</td>
+          <td>${item.contador_retificacoes}</td>
+        </tr>
+      `;
+    }).join('');
+    
+    // Atualizar cabeçalho da coluna de data
+    const dataHeader = document.getElementById('dataHeaderAnuais');
+    if (dados.length > 0 && dados[0].label_data) {
+      dataHeader.textContent = dados[0].label_data;
+    }
+  }
+  
+  section.style.display = 'block';
+}
+
+// Função para limpar filtros
+function limparFiltrosAnuais() {
+  document.getElementById('empresa_id').value = '';
+  document.getElementById('funcionario_id').value = '';
+  document.getElementById('tarefa_id').value = '';
+  document.getElementById('ano').value = '2025';
+  document.getElementById('resultados-anuais').style.display = 'none';
+}
+
+// Função para imprimir
+function imprimirRelatorioAnuais() {
+  window.print();
+}
+
+// Funções auxiliares (reutilizadas do script principal)
+function getStatusClass(status) {
+  switch(status) {
+    case 'concluida': return 'status-active';
+    case 'retificada': return 'status-warning';
+    case 'pendente': return 'status-pending';
+    default: return 'status-inactive';
+  }
+}
+
+function getStatusText(status, contador_retificacoes) {
+  switch(status) {
+    case 'concluida': return 'Concluída';
+    case 'retificada': return `Retificada (${contador_retificacoes}x)`;
+    case 'pendente': return 'Pendente';
+    default: return 'Em Andamento';
+  }
+}
+</script>
+{% endblock %}

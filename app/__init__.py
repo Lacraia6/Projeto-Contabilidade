@@ -46,7 +46,7 @@ def create_app() -> Flask:
 	app.config["SECRET_KEY"] = "dev-secret-key"
 	app.config["AUTH_ENABLED"] = True  # reativado
 
-	# Configuração SQLAlchemy (ajuste usuário/senha/host conforme necessário)
+	# Configuração SQLAlchemy MySQL
 	app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Tuta1305*@localhost/contabilidade?charset=utf8mb4'
 	app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 	db.init_app(app)
@@ -84,6 +84,10 @@ def create_app() -> Flask:
 	from .blueprints.relatorios import bp as relatorios_bp
 	from .blueprints.admin import bp as admin_bp
 	from .blueprints.tarefas_auto import bp as tarefas_auto_bp
+	from .blueprints.supervisor import bp as supervisor_bp
+	from .blueprints.checklist import bp as checklist_bp
+	from .blueprints.tarefas_melhoradas import bp as tarefas_melhoradas_bp
+	from .blueprints.api_global import bp as api_global_bp
 
 	app.register_blueprint(auth_bp)
 	app.register_blueprint(dashboard_bp)
@@ -93,6 +97,10 @@ def create_app() -> Flask:
 	app.register_blueprint(relatorios_bp)
 	app.register_blueprint(admin_bp)
 	app.register_blueprint(tarefas_auto_bp)
+	app.register_blueprint(tarefas_melhoradas_bp)
+	app.register_blueprint(api_global_bp)
+	app.register_blueprint(supervisor_bp)
+	app.register_blueprint(checklist_bp)
 
 	# Proteção simples de rotas (respeita flag AUTH_ENABLED)
 	PUBLIC_PATHS = {"/login"}

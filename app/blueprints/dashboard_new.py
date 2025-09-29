@@ -439,8 +439,9 @@ def retificar_tarefa():
         # Criar registro de retificação
         retificacao = Retificacao(
             periodo_id=periodo_id,
+            usuario_id=session.get('user_id'),
             motivo=motivo,
-            data_retificacao=datetime.now()
+            criado_em=datetime.now()
         )
         db.session.add(retificacao)
         

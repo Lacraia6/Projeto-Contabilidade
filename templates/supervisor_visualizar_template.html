@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizar Template - Painel do Supervisor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-header">
+                <h1><i class="fas fa-eye"></i> Visualizar Template</h1>
+                <p>Detalhes do template de checklist</p>
+                <div class="header-actions">
+                    <a href="{{ url_for('supervisor.templates') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </a>
+                    {% if template %}
+                    <button type="button" class="btn btn-success" onclick="aplicarTemplate({{ template.id }}, '{{ template.nome }}')">
+                        <i class="fas fa-play"></i> Aplicar Template
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if template %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-info-circle"></i> Informações do Template</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4>{{ template.nome }}</h4>
+                            {% if template.descricao %}
+                            <p class="text-muted">{{ template.descricao }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 text-right">
+                            {% if template.categoria %}
+                            <span class="badge badge-info badge-lg">{{ template.categoria }}</span>
+                            {% endif %}
+                            <br>
+                            <small class="text-muted">
+                                Criado em: {{ template.criado_em.strftime('%d/%m/%Y') if template.criado_em else 'N/A' }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> Itens do Template</h3>
+                    <span class="badge badge-secondary">{{ template.itens|length }} itens</span>
+                </div>
+                <div class="card-body">
+                    {% if template.itens %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="5%">#</th>
+                                    <th width="35%">Título</th>
+                                    <th width="45%">Descrição</th>
+                                    <th width="15%">Obrigatório</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in template.itens %}
+                                {% if item.ativo %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-light">{{ item.ordem }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ item.titulo }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if item.descricao %}
+                                        {{ item.descricao }}
+                                        {% else %}
+                                        <span class="text-muted">Sem descrição</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.obrigatorio %}
+                                        <span class="badge badge-success">Sim</span>
+                                        {% else %}
+                                        <span class="badge badge-warning">Não</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-list fa-2x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhum item encontrado</h5>
+                        <p class="text-muted">Este template não possui itens cadastrados.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h4>Template não encontrado</h4>
+                    <p class="text-muted">O template solicitado não foi encontrado ou não existe.</p>
+                    <a href="{{ url_for('supervisor.templates') }}" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> Voltar para Templates
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal para aplicar template -->
+<div class="modal fade" id="aplicarTemplateModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-play"></i> Aplicar Template
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="aplicarTemplateForm">
+                    <input type="hidden" id="templateId" name="template_id">
+                    
+                    <div class="form-group">
+                        <label for="empresaSearch">Empresa *</label>
+                        <div class="dropdown-search-container">
+                            <input type="text" id="empresaSearch" class="form-control dropdown-search-input" 
+                                   placeholder="Digite o nome da empresa..." autocomplete="off" required>
+                            <input type="hidden" id="empresaId" name="empresa_id">
+                            <div class="dropdown-search-results" id="empresaResults"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="responsaveisContainer">
+                        <!-- Será preenchido via JavaScript -->
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cancelarAplicacao()">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmarAplicacao()">
+                    <i class="fas fa-play"></i> Aplicar Template
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let templateData = null;
+
+function aplicarTemplate(templateId, templateNome) {
+    document.getElementById('templateId').value = templateId;
+    document.querySelector('#aplicarTemplateModal .modal-title').innerHTML = 
+        `<i class="fas fa-play"></i> Aplicar Template: ${templateNome}`;
+    
+    // Carregar dados do template
+    fetch(`/supervisor/api/templates/${templateId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                templateData = data;
+                carregarEmpresas();
+                carregarResponsaveis();
+                $('#aplicarTemplateModal').modal('show');
+            } else {
+                showErrorAlert('Erro ao carregar template: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            showErrorAlert('Erro ao carregar template');
+        });
+}
+
+function carregarEmpresas() {
+    // Configurar sistema de pesquisa de empresas
+    const empresaInput = document.getElementById('empresaSearch');
+    const empresaResults = document.getElementById('empresaResults');
+    const empresaId = document.getElementById('empresaId');
+    
+    let searchTimeout;
+    
+    empresaInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            empresaResults.innerHTML = '';
+            empresaResults.style.display = 'none';
+            empresaId.value = '';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/supervisor/api/empresas?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.empresas.length > 0) {
+                        empresaResults.innerHTML = data.empresas.map(empresa => `
+                            <div class="dropdown-search-item" onclick="selecionarEmpresa(${empresa.id}, '${empresa.codigo} - ${empresa.nome}')">
+                                <strong>${empresa.codigo}</strong> - ${empresa.nome}
+                            </div>
+                        `).join('');
+                        empresaResults.style.display = 'block';
+                    } else {
+                        empresaResults.innerHTML = '<div class="dropdown-search-item text-muted">Nenhuma empresa encontrada</div>';
+                        empresaResults.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar empresas:', error);
+                    empresaResults.innerHTML = '<div class="dropdown-search-item text-danger">Erro ao buscar empresas</div>';
+                    empresaResults.style.display = 'block';
+                });
+        }, 300);
+    });
+    
+    // Fechar resultados ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!empresaInput.contains(e.target) && !empresaResults.contains(e.target)) {
+            empresaResults.style.display = 'none';
+        }
+    });
+}
+
+function selecionarEmpresa(id, nome) {
+    document.getElementById('empresaSearch').value = nome;
+    document.getElementById('empresaId').value = id;
+    document.getElementById('empresaResults').style.display = 'none';
+}
+
+function carregarResponsaveis() {
+    if (!templateData || !templateData.template) return;
+    
+    const container = document.getElementById('responsaveisContainer');
+    container.innerHTML = '<h6>Definir Responsáveis:</h6>';
+    
+    templateData.template.itens.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'form-group';
+        div.innerHTML = `
+            <label for="responsavel_${item.id}">${item.titulo}</label>
+            <div class="dropdown-search-container">
+                <input type="text" id="responsavel_search_${item.id}" class="form-control dropdown-search-input" 
+                       placeholder="Digite o nome do funcionário..." autocomplete="off">
+                <input type="hidden" id="responsavel_${item.id}" name="responsavel_${item.id}">
+                <div class="dropdown-search-results" id="responsavel_results_${item.id}"></div>
+            </div>
+        `;
+        container.appendChild(div);
+        
+        // Configurar pesquisa para este responsável
+        configurarPesquisaResponsavel(item.id);
+    });
+}
+
+function configurarPesquisaResponsavel(itemId) {
+    const input = document.getElementById(`responsavel_search_${itemId}`);
+    const results = document.getElementById(`responsavel_results_${itemId}`);
+    const hidden = document.getElementById(`responsavel_${itemId}`);
+    
+    let searchTimeout;
+    
+    input.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            results.innerHTML = '';
+            results.style.display = 'none';
+            hidden.value = '';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            // Filtrar usuários localmente
+            const usuariosFiltrados = templateData.usuarios.filter(usuario => 
+                usuario.nome.toLowerCase().includes(query.toLowerCase())
+            );
+            
+            if (usuariosFiltrados.length > 0) {
+                results.innerHTML = usuariosFiltrados.map(usuario => `
+                    <div class="dropdown-search-item" onclick="selecionarResponsavel(${itemId}, ${usuario.id}, '${usuario.nome} (${usuario.tipo})')">
+                        <strong>${usuario.nome}</strong> <span class="text-muted">(${usuario.tipo})</span>
+                    </div>
+                `).join('');
+                results.style.display = 'block';
+            } else {
+                results.innerHTML = '<div class="dropdown-search-item text-muted">Nenhum funcionário encontrado</div>';
+                results.style.display = 'block';
+            }
+        }, 300);
+    });
+    
+    // Fechar resultados ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !results.contains(e.target)) {
+            results.style.display = 'none';
+        }
+    });
+}
+
+function selecionarResponsavel(itemId, userId, nome) {
+    document.getElementById(`responsavel_search_${itemId}`).value = nome;
+    document.getElementById(`responsavel_${itemId}`).value = userId;
+    document.getElementById(`responsavel_results_${itemId}`).style.display = 'none';
+}
+
+function cancelarAplicacao() {
+    // Limpar formulário
+    document.getElementById('empresaSearch').value = '';
+    document.getElementById('empresaId').value = '';
+    document.getElementById('empresaResults').style.display = 'none';
+    
+    // Limpar responsáveis
+    const responsaveisContainer = document.getElementById('responsaveisContainer');
+    responsaveisContainer.innerHTML = '<h6>Definir Responsáveis:</h6>';
+    
+    // Fechar modal
+    $('#aplicarTemplateModal').modal('hide');
+    
+    // Limpar dados do template
+    templateData = null;
+}
+
+function confirmarAplicacao() {
+    const form = document.getElementById('aplicarTemplateForm');
+    const formData = new FormData(form);
+    
+    // Verificar se empresa foi selecionada
+    const empresaId = document.getElementById('empresaId').value;
+    if (!empresaId) {
+        showErrorAlert('Selecione uma empresa');
+        return;
+    }
+    
+    // Coletar responsáveis
+    const responsaveis = {};
+    templateData.template.itens.forEach(item => {
+        const responsavelId = document.getElementById(`responsavel_${item.id}`).value;
+        if (responsavelId) {
+            responsaveis[item.id] = responsavelId;
+        }
+    });
+    
+    formData.append('responsaveis', JSON.stringify(responsaveis));
+    
+    // Enviar requisição
+    fetch(`/supervisor/templates/${templateData.template.id}/aplicar`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccessAlert(data.message);
+            $('#aplicarTemplateModal').modal('hide');
+        } else {
+            showErrorAlert('Erro ao aplicar template: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showErrorAlert('Erro ao aplicar template');
+    });
+}
+</script>
+{% endblock %}

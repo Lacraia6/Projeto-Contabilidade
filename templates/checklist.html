@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Meus Checklists{% endblock %}
+
+{% block content %}
+<section id="checklist" class="tab-content active dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-tasks"></i> Meus Checklists</h1>
+    <p>Gerencie seus checklists e marque os itens como concluídos</p>
+  </div>
+
+  <!-- Lista de Checklists em Aberto -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-list"></i> Checklists em Aberto</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Checklist</th>
+            <th>Empresa</th>
+            <th>Progresso</th>
+            <th>Status</th>
+            <th>Criado em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="checklistsAbertoTableBody">
+          {% for checklist_data in checklists %}
+            {% if checklist_data.progresso < 100 %}
+            <tr>
+              <td>
+                <strong>{{ checklist_data.checklist.nome }}</strong>
+                {% if checklist_data.checklist.descricao %}
+                  <br><small class="text-muted">{{ checklist_data.checklist.descricao }}</small>
+                {% endif %}
+              </td>
+              <td>{{ checklist_data.empresa.nome }}</td>
+              <td>
+                <div class="progress">
+                  <div class="progress-bar" role="progressbar" style="width: {{ checklist_data.progresso }}%">
+                    {{ checklist_data.progresso|round(1) }}%
+                  </div>
+                </div>
+                <small class="text-muted">
+                  {{ checklist_data.itens_concluidos }} de {{ checklist_data.total_itens }} itens
+                </small>
+              </td>
+              <td>
+                {% if checklist_data.progresso > 0 %}
+                  <span class="badge badge-warning">Em Andamento</span>
+                {% else %}
+                  <span class="badge badge-secondary">Não Iniciado</span>
+                {% endif %}
+              </td>
+              <td>{{ checklist_data.checklist.criado_em.strftime('%d/%m/%Y') if checklist_data.checklist.criado_em else 'N/A' }}</td>
+              <td>
+                <a href="/checklist/{{ checklist_data.checklist.id }}" class="btn btn-sm btn-primary">
+                  <i class="fas fa-eye"></i> Visualizar
+                </a>
+              </td>
+            </tr>
+            {% endif %}
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center">Nenhum checklist em aberto encontrado</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Lista de Checklists Concluídos -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-check-circle"></i> Checklists Concluídos</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Checklist</th>
+            <th>Empresa</th>
+            <th>Progresso</th>
+            <th>Concluído em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="checklistsConcluidosTableBody">
+          {% for checklist_data in checklists %}
+            {% if checklist_data.progresso == 100 %}
+            <tr>
+              <td>
+                <strong>{{ checklist_data.checklist.nome }}</strong>
+                {% if checklist_data.checklist.descricao %}
+                  <br><small class="text-muted">{{ checklist_data.checklist.descricao }}</small>
+                {% endif %}
+              </td>
+              <td>{{ checklist_data.empresa.nome }}</td>
+              <td>
+                <div class="progress">
+                  <div class="progress-bar bg-success" role="progressbar" style="width: 100%">
+                    100%
+                  </div>
+                </div>
+                <small class="text-muted">
+                  {{ checklist_data.total_itens }} itens concluídos
+                </small>
+              </td>
+              <td>
+                <span class="badge badge-success">Concluído</span>
+                <br><small class="text-muted">Data de conclusão não disponível</small>
+              </td>
+              <td>
+                <a href="/checklist/{{ checklist_data.checklist.id }}" class="btn btn-sm btn-info">
+                  <i class="fas fa-eye"></i> Visualizar
+                </a>
+              </td>
+            </tr>
+            {% endif %}
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center">Nenhum checklist concluído encontrado</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

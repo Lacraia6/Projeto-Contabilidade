@@ -21,18 +21,79 @@ def convert_period_to_label(period):
     return period
 
 
+def _should_show_task_by_type(tarefa_tipo, periodo_label, tarefa_periodo_label=None):
+    """
+    Determina se uma tarefa deve ser exibida baseado no seu tipo e período
+    
+    Args:
+        tarefa_tipo (str): Tipo da tarefa (Mensal, Trimestral, Anual)
+        periodo_label (str): Período filtrado pelo usuário (YYYY-MM)
+        tarefa_periodo_label (str): Período da tarefa específica (YYYY-MM ou YYYY-TQ)
+    
+    Returns:
+        bool: True se a tarefa deve ser exibida, False caso contrário
+    """
+    if tarefa_tipo == 'Mensal':
+        return True  # Tarefas mensais aparecem todo mês
+    
+    elif tarefa_tipo == 'Trimestral':
+        if not periodo_label or not tarefa_periodo_label:
+            return False
+        
+        # Mapear trimestres para o mês final de cada trimestre
+        trimestre_para_mes_final = {
+            'T1': 3,   # Primeiro trimestre -> Março
+            'T2': 6,   # Segundo trimestre -> Junho
+            'T3': 9,   # Terceiro trimestre -> Setembro
+            'T4': 12   # Quarto trimestre -> Dezembro
+        }
+        
+        try:
+            # Extrair mês do período filtrado pelo usuário
+            if len(periodo_label) >= 7 and '-' in periodo_label:
+                mes_filtro = int(periodo_label.split('-')[1])
+                
+                # Extrair trimestre da tarefa (ex: 2025-T3 -> T3)
+                if tarefa_periodo_label and 'T' in tarefa_periodo_label:
+                    trimestre_tarefa = tarefa_periodo_label.split('-')[-1]  # Pega a parte após o último '-'
+                    
+                    # Verificar se o mês filtrado é o mês final do trimestre da tarefa
+                    mes_final_trimestre = trimestre_para_mes_final.get(trimestre_tarefa)
+                    if mes_final_trimestre and mes_filtro == mes_final_trimestre:
+                        return True
+                
+                return False
+                
+        except (ValueError, IndexError):
+            return False
+    
+    elif tarefa_tipo == 'Anual':
+        # Tarefas anuais aparecem o ano todo, mas serão tratadas separadamente
+        return True
+    
+    return True  # Por padrão, mostrar a tarefa
+
+
 @bp.get('')
 @bp.get('/')
 def return_page():
     """Página principal do painel do gerente"""
     try:
         # Parâmetros da requisição
-        setor_atual = request.args.get('setor_id', type=int)
+        setor_atual = request.args.get('setor_id')
+        if setor_atual:
+            setor_atual = int(setor_atual)
         periodo_input = request.args.get('periodo', '08/2025')
-        empresa_atual = request.args.get('empresa_id', type=int)
+        empresa_atual = request.args.get('empresa_id')
+        if empresa_atual:
+            empresa_atual = int(empresa_atual)
         empresa_ids = request.args.get('empresa_ids', '')
-        colaborador_id = request.args.get('colaborador_id', type=int)
-        tarefa_id = request.args.get('tarefa_id', type=int)
+        colaborador_id = request.args.get('colaborador_id')
+        if colaborador_id:
+            colaborador_id = int(colaborador_id)
+        tarefa_id = request.args.get('tarefa_id')
+        if tarefa_id:
+            tarefa_id = int(tarefa_id)
         user_id = session.get('user_id')
         
         # Processar múltiplas empresas
@@ -108,7 +169,25 @@ def return_page():
             q = q.filter(Empresa.id == empresa_atual)
         
         # Executar query e processar resultados
-        resultados = q.all()
+        resultados_brutos = q.all()
+        
+        # Aplicar filtragem inteligente por tipo de tarefa
+        resultados = []
+        for p, rel, tar, emp, usu in resultados_brutos:
+            # Excluir tarefas anuais (são tratadas separadamente)
+            if tar.tipo == 'Anual':
+                continue
+            
+            # Para tarefas trimestrais, aplicar filtragem inteligente
+            if tar.tipo == 'Trimestral':
+                if not _should_show_task_by_type(tar.tipo, periodo_atual, p.periodo_label):
+                    continue
+            else:
+                # Para tarefas mensais, aplicar filtro de período normalmente
+                if p.periodo_label != periodo_atual:
+                    continue
+            
+            resultados.append((p, rel, tar, emp, usu))
         
         # Inicializar estruturas de dados
         resumo = {"pendentes": 0, "fazendo": 0, "concluidas": 0}
@@ -338,10 +417,16 @@ def api_resumo():
     """API para buscar resumo de dados por período e empresa"""
     try:
         periodo_input = request.args.get('periodo', '08/2025')
-        empresa_id = request.args.get('empresa_id', type=int)
+        empresa_id = request.args.get('empresa_id')
+        if empresa_id:
+            empresa_id = int(empresa_id)
         empresa_ids = request.args.get('empresa_ids', '')
-        colaborador_id = request.args.get('colaborador_id', type=int)
-        tarefa_id = request.args.get('tarefa_id', type=int)
+        colaborador_id = request.args.get('colaborador_id')
+        if colaborador_id:
+            colaborador_id = int(colaborador_id)
+        tarefa_id = request.args.get('tarefa_id')
+        if tarefa_id:
+            tarefa_id = int(tarefa_id)
         
         # Validar período
         if not validate_period_format(periodo_input):
@@ -362,7 +447,6 @@ def api_resumo():
         ).outerjoin(
             Usuario, RelacionamentoTarefa.responsavel_id == Usuario.id
         ).filter(
-            Periodo.periodo_label == periodo_atual,
             Empresa.ativo == True,
             RelacionamentoTarefa.status == 'ativa'
         )
@@ -383,7 +467,32 @@ def api_resumo():
         if tarefa_id:
             q = q.filter(Tarefa.id == tarefa_id)
         
-        resultados = q.all()
+        # Filtrar por setor do gerente (se for gerente)
+        user_id = session.get('user_id')
+        usuario = Usuario.query.get(user_id) if user_id else None
+        if usuario and usuario.tipo == 'gerente' and usuario.setor_id:
+            q = q.filter(Tarefa.setor_id == usuario.setor_id)
+        
+        # Executar query
+        resultados_brutos = q.all()
+        
+        # Aplicar filtragem inteligente por tipo de tarefa
+        resultados = []
+        for p, rel, tar, emp, usu in resultados_brutos:
+            # Excluir tarefas anuais (são tratadas separadamente)
+            if tar.tipo == 'Anual':
+                continue
+            
+            # Para tarefas trimestrais, aplicar filtragem inteligente
+            if tar.tipo == 'Trimestral':
+                if not _should_show_task_by_type(tar.tipo, periodo_atual, p.periodo_label):
+                    continue
+            else:
+                # Para tarefas mensais, aplicar filtro de período normalmente
+                if p.periodo_label != periodo_atual:
+                    continue
+            
+            resultados.append((p, rel, tar, emp, usu))
         
         # Processar resultados
         resumo = {"pendentes": 0, "fazendo": 0, "concluidas": 0}
@@ -465,3 +574,53 @@ def api_resumo():
             'success': False,
             'message': f'Erro ao buscar resumo: {str(e)}'
         }), 500
+
+
+@bp.get('/api/tarefas-anuais')
+def api_tarefas_anuais():
+    """API para buscar tarefas anuais do painel do gerente"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
+        
+        # Buscar dados do usuário
+        usuario = Usuario.query.get(user_id)
+        user_tipo = usuario.tipo if usuario else 'normal'
+        user_setor_id = usuario.setor_id if usuario else None
+        
+        # Buscar tarefas anuais relacionadas ao setor do gerente
+        query = db.session.query(Periodo, RelacionamentoTarefa, Tarefa, Empresa, Usuario).join(
+            RelacionamentoTarefa, Periodo.relacionamento_tarefa_id == RelacionamentoTarefa.id
+        ).join(
+            Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
+        ).join(
+            Empresa, RelacionamentoTarefa.empresa_id == Empresa.id
+        ).outerjoin(
+            Usuario, RelacionamentoTarefa.responsavel_id == Usuario.id
+        ).filter(
+            Tarefa.tipo == 'Anual',
+            Empresa.ativo == True,
+            RelacionamentoTarefa.status == 'ativa'
+        )
+        
+        # Aplicar filtro de setor apenas para gerentes
+        if user_tipo == 'gerente' and user_setor_id:
+            query = query.filter(Tarefa.setor_id == usuario.setor_id)
+        
+        tarefas_anuais = []
+        for p, rel, tar, emp, usu in query.all():
+            tarefas_anuais.append({
+                "periodo_id": p.id,
+                "usuario_nome": (usu.nome if usu else 'Não atribuído'),
+                "empresa_nome": emp.nome,
+                "tarefa_nome": tar.nome,
+                "status": p.status or 'pendente',
+                "periodo_label": p.periodo_label,
+                "contador_retificacoes": p.contador_retificacoes or 0
+            })
+        
+        return jsonify({'success': True, 'tarefas_anuais': tarefas_anuais})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro ao buscar tarefas anuais: {str(e)}'}), 500

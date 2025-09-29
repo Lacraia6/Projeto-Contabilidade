@@ -74,11 +74,11 @@ async function confirmarConclusao() {
         location.reload();
       }, 2000);
     } else {
-      alert('Erro ao concluir tarefa: ' + (result.message || 'Erro desconhecido'));
+      showErrorAlert('Erro ao concluir tarefa: ' + (result.message || 'Erro desconhecido'), 'Erro');
     }
   } catch (error) {
     console.error('Erro:', error);
-    alert('Erro ao concluir tarefa. Tente novamente.');
+    showErrorAlert('Erro ao concluir tarefa. Tente novamente.', 'Erro');
   }
 }
 
@@ -111,11 +111,11 @@ async function confirmarRetificacao() {
         location.reload();
       }, 2000);
     } else {
-      alert('Erro ao retificar tarefa: ' + (result.message || 'Erro desconhecido'));
+      showErrorAlert('Erro ao retificar tarefa: ' + (result.message || 'Erro desconhecido'), 'Erro');
     }
   } catch (error) {
     console.error('Erro:', error);
-    alert('Erro ao retificar tarefa. Tente novamente.');
+    showErrorAlert('Erro ao retificar tarefa. Tente novamente.', 'Erro');
   }
 }
 

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Sistema de Modais</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <main class="main-content">
+            <div class="dashboard-section">
+                <h1>🎨 Demo - Sistema de Modais</h1>
+                <p>Teste os diferentes tipos de modais que substituem os alerts nativos</p>
+                
+                <div class="dashboard-filters">
+                    <h3>Tipos de Modal Disponíveis</h3>
+                    
+                    <div class="form-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-danger" onclick="showErrorAlert('Este é um exemplo de erro!', 'Erro de Teste')">
+                            <i class="fas fa-exclamation-triangle"></i> Erro
+                        </button>
+                        
+                        <button class="btn btn-success" onclick="showSuccessAlert('Operação realizada com sucesso!', 'Sucesso')">
+                            <i class="fas fa-check-circle"></i> Sucesso
+                        </button>
+                        
+                        <button class="btn btn-warning" onclick="showWarningAlert('Atenção! Esta ação requer confirmação.', 'Atenção')">
+                            <i class="fas fa-exclamation-circle"></i> Aviso
+                        </button>
+                        
+                        <button class="btn btn-info" onclick="showInfoAlert('Esta é uma informação importante.', 'Informação')">
+                            <i class="fas fa-info-circle"></i> Informação
+                        </button>
+                        
+                        <button class="btn btn-primary" onclick="showAlertModal('Modal personalizado com título customizado', 'info', 'Título Personalizado')">
+                            <i class="fas fa-cog"></i> Personalizado
+                        </button>
+                        
+                        <button class="btn btn-secondary" onclick="alert('Teste do alert nativo (substituído automaticamente)')">
+                            <i class="fas fa-bell"></i> Alert Nativo
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="dashboard-table">
+                    <h3>📋 Funcionalidades dos Modais</h3>
+                    <ul>
+                        <li>✅ <strong>Design Moderno:</strong> Interface limpa e profissional</li>
+                        <li>✅ <strong>Animações:</strong> Transições suaves de entrada e saída</li>
+                        <li>✅ <strong>Responsivo:</strong> Adapta-se a diferentes tamanhos de tela</li>
+                        <li>✅ <strong>Tipos Visuais:</strong> Cores e ícones específicos para cada tipo</li>
+                        <li>✅ <strong>Fechamento:</strong> ESC, clique fora ou botão OK</li>
+                        <li>✅ <strong>Backdrop:</strong> Fundo desfocado para melhor foco</li>
+                        <li>✅ <strong>Acessibilidade:</strong> Suporte a teclado e leitores de tela</li>
+                    </ul>
+                </div>
+                
+                <div class="dashboard-table">
+                    <h3>🔧 Como Usar</h3>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; font-family: monospace;">
+                        <p><strong>// Erro</strong></p>
+                        <p>showErrorAlert('Mensagem de erro', 'Título');</p>
+                        <br>
+                        <p><strong>// Sucesso</strong></p>
+                        <p>showSuccessAlert('Operação concluída!', 'Sucesso');</p>
+                        <br>
+                        <p><strong>// Aviso</strong></p>
+                        <p>showWarningAlert('Atenção necessária', 'Atenção');</p>
+                        <br>
+                        <p><strong>// Informação</strong></p>
+                        <p>showInfoAlert('Informação importante', 'Info');</p>
+                        <br>
+                        <p><strong>// Personalizado</strong></p>
+                        <p>showAlertModal('Mensagem', 'tipo', 'Título');</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Alerta Personalizado -->
+    <div id="alertModal" class="alert-modal">
+        <div class="alert-modal-content">
+            <div class="alert-modal-header" id="alertModalHeader">
+                <i class="alert-modal-icon" id="alertModalIcon"></i>
+                <h3 class="alert-modal-title" id="alertModalTitle">Alerta</h3>
+            </div>
+            <div class="alert-modal-body" id="alertModalBody">
+                <!-- Conteúdo da mensagem será inserido aqui -->
+            </div>
+            <div class="alert-modal-footer">
+                <button class="alert-modal-btn alert-modal-btn-primary" id="alertModalBtn" onclick="closeAlertModal()">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sistema de modais (copiado do script.js)
+        window.showAlertModal = function(message, type = 'error', title = null) {
+            const modal = document.getElementById('alertModal');
+            const header = document.getElementById('alertModalHeader');
+            const icon = document.getElementById('alertModalIcon');
+            const titleEl = document.getElementById('alertModalTitle');
+            const body = document.getElementById('alertModalBody');
+            const btn = document.getElementById('alertModalBtn');
+            
+            if (!modal) {
+                console.error('Modal de alerta não encontrado');
+                return;
+            }
+            
+            const configs = {
+                error: {
+                    icon: 'fas fa-exclamation-triangle',
+                    title: title || 'Erro',
+                    btnClass: 'alert-modal-btn-primary'
+                },
+                success: {
+                    icon: 'fas fa-check-circle',
+                    title: title || 'Sucesso',
+                    btnClass: 'alert-modal-btn-success'
+                },
+                warning: {
+                    icon: 'fas fa-exclamation-circle',
+                    title: title || 'Atenção',
+                    btnClass: 'alert-modal-btn-secondary'
+                },
+                info: {
+                    icon: 'fas fa-info-circle',
+                    title: title || 'Informação',
+                    btnClass: 'alert-modal-btn-primary'
+                }
+            };
+            
+            const config = configs[type] || configs.error;
+            
+            header.className = `alert-modal-header ${type}`;
+            icon.className = `alert-modal-icon ${config.icon}`;
+            titleEl.textContent = config.title;
+            body.textContent = message;
+            btn.className = `alert-modal-btn ${config.btnClass}`;
+            
+            modal.classList.add('show');
+            
+            const handleEsc = (e) => {
+                if (e.key === 'Escape') {
+                    closeAlertModal();
+                    document.removeEventListener('keydown', handleEsc);
+                }
+            };
+            document.addEventListener('keydown', handleEsc);
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeAlertModal();
+                }
+            });
+        };
+
+        window.closeAlertModal = function() {
+            const modal = document.getElementById('alertModal');
+            if (modal) {
+                modal.classList.remove('show');
+            }
+        };
+
+        window.originalAlert = window.alert;
+        window.alert = function(message) {
+            console.log('🔄 Substituindo alert nativo por modal personalizado:', message);
+            showAlertModal(message, 'info', 'Alerta');
+        };
+
+        window.showSuccessAlert = function(message, title = 'Sucesso') {
+            showAlertModal(message, 'success', title);
+        };
+
+        window.showErrorAlert = function(message, title = 'Erro') {
+            showAlertModal(message, 'error', title);
+        };
+
+        window.showWarningAlert = function(message, title = 'Atenção') {
+            showAlertModal(message, 'warning', title);
+        };
+
+        window.showInfoAlert = function(message, title = 'Informação') {
+            showAlertModal(message, 'info', title);
+        };
+    </script>
+</body>
+</html>
+
+

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}{{ checklist.nome if checklist else 'Checklist' }} - Detalhes{% endblock %}
+
+{% block content %}
+<section id="supervisor-checklist-detalhes" class="tab-content active dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-tasks"></i> {{ checklist.nome if checklist else 'Checklist' }}</h1>
+    <p>{{ checklist.descricao if checklist else 'Visualizar detalhes do checklist' }}</p>
+    <div class="header-actions">
+      <a href="/supervisor/checklists" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar
+      </a>
+    </div>
+  </div>
+
+  {% if checklist %}
+  <!-- Informações do Checklist -->
+  <div class="dashboard-filters">
+    <div class="card-header">
+      <h3><i class="fas fa-info-circle"></i> Informações do Checklist</h3>
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label>Empresa:</label>
+        <p class="form-control-static">{{ checklist.empresa.nome }}</p>
+      </div>
+      
+      <div class="form-group">
+        <label>Criado em:</label>
+        <p class="form-control-static">{{ checklist.criado_em.strftime('%d/%m/%Y às %H:%M') if checklist.criado_em else 'N/A' }}</p>
+      </div>
+      
+      <div class="form-group">
+        <label>Criado por:</label>
+        <p class="form-control-static">{{ checklist.criador.nome if checklist.criador else 'N/A' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Itens do Checklist -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-list"></i> Itens do Checklist</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th width="5%">#</th>
+            <th width="30%">Título</th>
+            <th width="35%">Descrição</th>
+            <th width="15%">Responsável</th>
+            <th width="10%">Obrigatório</th>
+            <th width="5%">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in checklist.itens %}
+          <tr>
+            <td>{{ item.ordem }}</td>
+            <td>
+              <strong>{{ item.titulo }}</strong>
+            </td>
+            <td>
+              {% if item.descricao %}
+                {{ item.descricao }}
+              {% else %}
+                <span class="text-muted">Sem descrição</span>
+              {% endif %}
+            </td>
+            <td>{{ item.responsavel.nome if item.responsavel else 'Não atribuído' }}</td>
+            <td>
+              {% if item.obrigatorio %}
+                <span class="badge badge-danger">Sim</span>
+              {% else %}
+                <span class="badge badge-secondary">Não</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.ativo %}
+                <span class="badge badge-success">Ativo</span>
+              {% else %}
+                <span class="badge badge-danger">Inativo</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center">Nenhum item encontrado</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Progresso dos Usuários -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-chart-bar"></i> Progresso dos Usuários</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Itens Atribuídos</th>
+            <th>Concluídos</th>
+            <th>Progresso</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set usuarios_progresso = {} %}
+          {% for item in checklist.itens %}
+            {% if item.responsavel %}
+              {% set user_id = item.responsavel.id %}
+              {% if user_id not in usuarios_progresso %}
+                {% set _ = usuarios_progresso.update({user_id: {'usuario': item.responsavel, 'total': 0, 'concluidos': 0}}) %}
+              {% endif %}
+              {% set _ = usuarios_progresso[user_id].update({'total': usuarios_progresso[user_id]['total'] + 1}) %}
+              
+              {% for conclusao in item.conclusoes %}
+                {% if conclusao.concluido %}
+                  {% set _ = usuarios_progresso[user_id].update({'concluidos': usuarios_progresso[user_id]['concluidos'] + 1}) %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+          
+          {% for user_id, dados in usuarios_progresso.items() %}
+          <tr>
+            <td>{{ dados.usuario.nome }}</td>
+            <td>{{ dados.total }}</td>
+            <td>{{ dados.concluidos }}</td>
+            <td>
+              {% set progresso = (dados.concluidos / dados.total * 100) if dados.total > 0 else 0 %}
+              <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: {{ progresso }}%">
+                  {{ progresso|round(1) }}%
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="text-center">Nenhum usuário com itens atribuídos</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ error or 'Checklist não encontrado' }}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Checklists - Supervisor{% endblock %}
+
+{% block content %}
+<section id="supervisor-checklists" class="tab-content active dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-tasks"></i> Gerenciar Checklists</h1>
+    <p>Visualizar e gerenciar checklists criados</p>
+    <div class="header-actions">
+      <a href="/supervisor/checklists/criar" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Novo Checklist
+      </a>
+      <a href="/supervisor" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar
+      </a>
+    </div>
+  </div>
+
+  <!-- Lista de Checklists -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-list"></i> Checklists Criados</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Empresa</th>
+            <th>Itens</th>
+            <th>Criado em</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for checklist in checklists %}
+          <tr>
+            <td>
+              <strong>{{ checklist.nome }}</strong>
+              {% if checklist.descricao %}
+                <br><small class="text-muted">{{ checklist.descricao }}</small>
+              {% endif %}
+            </td>
+            <td>{{ checklist.empresa.nome }}</td>
+            <td>{{ checklist.itens|length }} itens</td>
+            <td>{{ checklist.criado_em.strftime('%d/%m/%Y') if checklist.criado_em else 'N/A' }}</td>
+            <td>
+              {% if checklist.ativo %}
+                <span class="badge badge-success">Ativo</span>
+              {% else %}
+                <span class="badge badge-danger">Inativo</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="/supervisor/checklists/{{ checklist.id }}" class="btn btn-sm btn-info">
+                <i class="fas fa-eye"></i> Visualizar
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center">Nenhum checklist encontrado</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+

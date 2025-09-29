@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}{{ checklist.nome if checklist else 'Checklist' }} - Detalhes{% endblock %}
+
+{% block content %}
+<section id="checklist-detalhes" class="tab-content active dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-tasks"></i> {{ checklist.nome if checklist else 'Checklist' }}</h1>
+    <p>{{ checklist.descricao if checklist else 'Visualizar itens do checklist' }}</p>
+    <div class="header-actions">
+      <a href="/checklist" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar
+      </a>
+    </div>
+  </div>
+
+  {% if checklist %}
+  <!-- Informações do Checklist -->
+  <div class="dashboard-filters">
+    <div class="card-header">
+      <h3><i class="fas fa-info-circle"></i> Informações do Checklist</h3>
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label>Empresa:</label>
+        <p class="form-control-static">{{ checklist.empresa.nome }}</p>
+      </div>
+      
+      <div class="form-group">
+        <label>Criado em:</label>
+        <p class="form-control-static">{{ checklist.criado_em.strftime('%d/%m/%Y às %H:%M') if checklist.criado_em else 'N/A' }}</p>
+      </div>
+      
+      <div class="form-group">
+        <label>Criado por:</label>
+        <p class="form-control-static">{{ checklist.criador.nome if checklist.criador else 'N/A' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Itens do Checklist -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-list"></i> Itens do Checklist</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th width="5%">#</th>
+            <th width="30%">Título</th>
+            <th width="35%">Descrição</th>
+            <th width="10%">Obrigatório</th>
+            <th width="10%">Status</th>
+            <th width="10%">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item_data in itens %}
+          <tr id="item-{{ item_data.item.id }}">
+            <td>{{ item_data.item.ordem }}</td>
+            <td>
+              <strong>{{ item_data.item.titulo }}</strong>
+            </td>
+            <td>
+              {% if item_data.item.descricao %}
+                {{ item_data.item.descricao }}
+              {% else %}
+                <span class="text-muted">Sem descrição</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item_data.item.obrigatorio %}
+                <span class="badge badge-danger">Sim</span>
+              {% else %}
+                <span class="badge badge-secondary">Não</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item_data.conclusao and item_data.conclusao.concluido %}
+                <span class="badge badge-success">Concluído</span>
+                {% if item_data.conclusao.concluido_em %}
+                  <br><small class="text-muted">{{ item_data.conclusao.concluido_em.strftime('%d/%m/%Y %H:%M') }}</small>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-secondary">Pendente</span>
+              {% endif %}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-primary" onclick="showItemModal({{ item_data.item.id }}, {{ 'true' if item_data.conclusao and item_data.conclusao.concluido else 'false' }}, '{{ item_data.item.titulo }}', '{{ item_data.conclusao.observacoes if item_data.conclusao and item_data.conclusao.observacoes else '' }}')">
+                <i class="fas fa-{{ 'check' if item_data.conclusao and item_data.conclusao.concluido else 'times' }}"></i>
+                {{ 'Desmarcar' if item_data.conclusao and item_data.conclusao.concluido else 'Marcar' }}
+              </button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center">Nenhum item encontrado</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal para marcar item -->
+  <div id="modalItemChecklist" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fas fa-tasks"></i> <span id="modalItemTitulo">Marcar Item</span></h3>
+        <span class="close" onclick="closeModal('modalItemChecklist')">&times;</span>
+      </div>
+      <div class="modal-body">
+        <form id="formItemChecklist">
+          <input type="hidden" id="itemIdChecklist" name="item_id">
+          <input type="hidden" id="itemStatusAtual" name="status_atual">
+          
+          <div class="form-group">
+            <label>Item:</label>
+            <p class="form-control-static" id="itemNomeChecklist"></p>
+          </div>
+          
+          <div class="form-group">
+            <label for="observacoesChecklist">Observações (opcional):</label>
+            <textarea id="observacoesChecklist" name="observacoes" class="form-control" rows="4" placeholder="Digite suas observações sobre este item..."></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modalItemChecklist')">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btnConfirmarItem">
+              <i class="fas fa-check"></i> Marcar como Concluído
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ error or 'Checklist não encontrado' }}
+  </div>
+  {% endif %}
+</section>
+
+<script>
+let currentItemId = null;
+
+function showItemModal(itemId, isCompleted, itemTitulo, observacoesAtuais) {
+  currentItemId = itemId;
+  
+  // Configurar modal
+  document.getElementById('itemIdChecklist').value = itemId;
+  document.getElementById('itemStatusAtual').value = isCompleted;
+  document.getElementById('itemNomeChecklist').textContent = itemTitulo;
+  document.getElementById('observacoesChecklist').value = observacoesAtuais || '';
+  
+  // Configurar título e botão baseado no status atual
+  const titulo = document.getElementById('modalItemTitulo');
+  const botao = document.getElementById('btnConfirmarItem');
+  
+  if (isCompleted === 'true') {
+    titulo.textContent = 'Desmarcar Item';
+    botao.innerHTML = '<i class="fas fa-times"></i> Desmarcar Item';
+    botao.className = 'btn btn-warning';
+  } else {
+    titulo.textContent = 'Marcar Item';
+    botao.innerHTML = '<i class="fas fa-check"></i> Marcar como Concluído';
+    botao.className = 'btn btn-primary';
+  }
+  
+  showModal('modalItemChecklist');
+}
+
+function concluirItem(itemId, concluido, observacoes) {
+  fetch(`/checklist/item/${itemId}/concluir`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      concluido: concluido,
+      observacoes: observacoes
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showFeedback('Item atualizado com sucesso!', 'success');
+      closeModal('modalItemChecklist');
+      // Recarregar página após 1 segundo
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      showFeedback(data.message || 'Erro ao atualizar item', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    showFeedback('Erro ao atualizar item', 'error');
+  });
+}
+
+// Formulário do modal de item
+document.getElementById('formItemChecklist').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const itemId = document.getElementById('itemIdChecklist').value;
+  const statusAtual = document.getElementById('itemStatusAtual').value;
+  const observacoes = document.getElementById('observacoesChecklist').value;
+  
+  // Determinar novo status (inverter o atual)
+  const novoStatus = statusAtual === 'true' ? false : true;
+  
+  concluirItem(itemId, novoStatus, observacoes);
+});
+</script>
+{% endblock %}

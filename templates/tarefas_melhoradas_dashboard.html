@@ -1,0 +1,1578 @@
+{% extends "base.html" %}
+
+{% block title %}Sistema Melhorado de Tarefas{% endblock %}
+
+{% block content %}
+<section id="tarefas-melhoradas" class="tab-content active">
+  <div class="page-header">
+    <h1><i class="fas fa-tasks"></i> Sistema Melhorado de Tarefas</h1>
+    <p>Gerencie empresas, tributação e tarefas de forma inteligente</p>
+    {% if usuario_logado.tipo == 'gerente' %}
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle"></i> 
+      <strong>Filtro por Setor:</strong> Você está visualizando apenas as tarefas do seu setor: 
+      <span class="badge badge-primary">{{ usuario_logado.setor.nome if usuario_logado.setor else 'Não definido' }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Resumo -->
+  <div class="content-card">
+    <div class="card-header">
+      <h3><i class="fas fa-chart-bar"></i> Resumo do Sistema</h3>
+    </div>
+    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+      <div class="metric-card">
+        <div class="metric-icon contas"><i class="fas fa-building"></i></div>
+        <div class="metric-content">
+          <h3>Empresas Ativas</h3>
+          <div class="metric-value">{{ total_empresas }}</div>
+          <div class="metric-change neutral"><i class="fas fa-globe"></i> Total</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon pendentes"><i class="fas fa-clipboard-list"></i></div>
+        <div class="metric-content">
+          <h3>Tarefas Globais</h3>
+          <div class="metric-value">{{ total_tarefas }}</div>
+          <div class="metric-change warning"><i class="fas fa-tasks"></i> Modelos</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon concluidas"><i class="fas fa-link"></i></div>
+        <div class="metric-content">
+          <h3>Vinculações Ativas</h3>
+          <div class="metric-value">{{ total_vinculacoes }}</div>
+          <div class="metric-change success"><i class="fas fa-check"></i> Ativas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Abas de Navegação -->
+  <div class="content-card">
+    <div class="card-header">
+      <h3><i class="fas fa-cogs"></i> Gerenciamento</h3>
+      <div class="card-actions">
+        <button type="button" class="btn btn-primary" onclick="showTab('empresas')">
+          <i class="fas fa-building"></i> Empresas
+        </button>
+        <button type="button" class="btn btn-success" onclick="showTab('tarefas')">
+          <i class="fas fa-tasks"></i> Tarefas
+        </button>
+        <button type="button" class="btn btn-info" onclick="showTab('responsaveis')">
+          <i class="fas fa-users"></i> Responsáveis
+        </button>
+      </div>
+    </div>
+
+    <!-- Aba Empresas -->
+    <div id="tab-empresas" class="tab-content active">
+      <div class="row">
+        <div class="col-md-6">
+          <h4><i class="fas fa-list"></i> Lista de Empresas</h4>
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Tributação</th>
+                  <th>Tarefas</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="empresas-list">
+                {% for empresa in empresas %}
+                <tr data-empresa-id="{{ empresa.id }}">
+                  <td>
+                    <strong>{{ empresa.nome }}</strong><br>
+                    <small class="text-muted">{{ empresa.codigo }}</small>
+                  </td>
+                  <td>
+                    <span class="badge badge-{{ 'success' if empresa.tributacao.nome == 'Simples Nacional' else 'primary' }}">
+                      {{ empresa.tributacao.nome }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge badge-info" id="tarefas-count-{{ empresa.id }}">Carregando...</span>
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-primary" onclick="verEmpresa({{ empresa.id }})">
+                      <i class="fas fa-eye"></i> Ver
+                    </button>
+                    <button class="btn btn-sm btn-warning" onclick="alterarTributacao({{ empresa.id }})">
+                      <i class="fas fa-exchange-alt"></i> Alterar
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div id="empresa-detalhes" class="hidden">
+            <h4><i class="fas fa-info-circle"></i> Detalhes da Empresa</h4>
+            <div id="empresa-info"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aba Tarefas -->
+    <div id="tab-tarefas" class="tab-content hidden">
+      <div class="content-card">
+        <div class="card-header">
+          <h3><i class="fas fa-tasks"></i> Tarefas</h3>
+          <div class="header-actions">
+            <button class="btn btn-success" onclick="mostrarModalCriarTarefa()">
+              <i class="fas fa-plus"></i> Nova Tarefa
+            </button>
+            <button class="btn btn-primary" onclick="filtrarTarefas()">
+              <i class="fas fa-filter"></i> Filtrar
+            </button>
+          </div>
+        </div>
+        
+        <div class="card-body">
+          <!-- Busca e Filtros -->
+          <div class="row mb-3">
+            <div class="col-md-4">
+              <label for="busca-tarefas">Buscar Tarefas:</label>
+              <div class="search-container">
+                <input type="text" id="busca-tarefas" class="form-control" placeholder="Digite o nome da tarefa...">
+                <div id="resultados-busca-tarefas" class="search-results"></div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label for="tributacao-filter">Filtrar por Tributação:</label>
+              <select id="tributacao-filter" class="form-control" onchange="filtrarTarefas()">
+                <option value="">Todas as Tributações</option>
+                {% for tributacao in tributacoes %}
+                <option value="{{ tributacao.id }}">{{ tributacao.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="setor-filter">Filtrar por Setor:</label>
+              <select id="setor-filter" class="form-control" onchange="filtrarTarefas()">
+                <option value="">Todos os Setores</option>
+                {% for setor in setores %}
+                <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <label>&nbsp;</label>
+              <button class="btn btn-secondary btn-block" onclick="limparFiltros()">
+                <i class="fas fa-times"></i> Limpar
+              </button>
+            </div>
+          </div>
+          
+          <!-- Lista de tarefas -->
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Tributação</th>
+                  <th>Setor</th>
+                  <th>Tarefa Comum</th>
+                  <th>Obrigatória</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tarefas-tbody">
+                <!-- Tarefas serão carregadas aqui -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aba Responsáveis -->
+    <div id="tab-responsaveis" class="tab-content hidden">
+      <div class="content-card">
+        <div class="card-header">
+          <h3><i class="fas fa-users"></i> Responsáveis</h3>
+          <div class="header-actions">
+            <button class="btn btn-primary" onclick="mostrarModalVincularResponsavel()">
+              <i class="fas fa-link"></i> Vincular Responsável
+            </button>
+          </div>
+        </div>
+        
+        <div class="card-body">
+          <!-- Busca de responsáveis -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="busca-responsaveis">Buscar Responsáveis:</label>
+              <div class="search-container">
+                <input type="text" id="busca-responsaveis" class="form-control" placeholder="Digite o nome do responsável...">
+                <div id="resultados-busca-responsaveis" class="search-results"></div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label for="filtro-setor-responsaveis">Filtrar por Setor:</label>
+              <select id="filtro-setor-responsaveis" class="form-control" onchange="filtrarResponsaveis()">
+                <option value="">Todos os Setores</option>
+                {% for setor in setores %}
+                <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label for="filtro-tributacao-responsaveis">Filtrar por Tributação:</label>
+              <select id="filtro-tributacao-responsaveis" class="form-control" onchange="filtrarResponsaveis()">
+                <option value="">Todas as Tributações</option>
+                {% for tributacao in tributacoes %}
+                <option value="{{ tributacao.id }}">{{ tributacao.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          
+          <!-- Lista de responsáveis -->
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Responsável</th>
+                  <th>Setor</th>
+                  <th>Tributação</th>
+                  <th>Tarefas Vinculadas</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="responsaveis-tbody">
+                <!-- Será preenchido via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal para Alterar Tributação -->
+<div class="modal fade" id="modalAlterarTributacao" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-exchange-alt"></i> Alterar Tributação
+        </h5>
+        <button type="button" class="close" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="alterar-tributacao-content">
+          <!-- Será preenchido via JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="confirmar-alteracao">
+          <i class="fas fa-check"></i> Confirmar Alteração
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Ver Empresa -->
+<div class="modal fade" id="modalVerEmpresa" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-building"></i> Detalhes da Empresa
+        </h5>
+        <button type="button" class="close" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="empresa-detalhes-content">
+          <!-- Será preenchido via JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Variáveis globais
+let empresaSelecionada = null;
+let novaTributacaoId = null;
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Inicializando sistema melhorado de tarefas...');
+    
+    // Carregar dados iniciais
+    carregarEmpresas();
+    carregarTarefas();
+    carregarResponsaveis();
+    carregarUsuarios();
+    
+    // Configurar formulário de responsável (se existir)
+    const responsavelForm = document.getElementById('responsavel-form');
+    if (responsavelForm) {
+        responsavelForm.addEventListener('submit', salvarResponsavelPadrao);
+    }
+    
+    // Configurar sistema de busca
+    configurarBuscaTarefas();
+    
+    console.log('✅ Sistema melhorado de tarefas inicializado!');
+});
+
+// Funções de navegação
+function showTab(tabName) {
+    // Esconder apenas as abas internas (não a aba principal)
+    document.querySelectorAll('#tab-empresas, #tab-tarefas, #tab-responsaveis').forEach(tab => {
+        tab.classList.add('hidden');
+        tab.classList.remove('active');
+    });
+    
+    // Mostrar aba selecionada
+    const tab = document.getElementById(`tab-${tabName}`);
+    if (tab) {
+        tab.classList.remove('hidden');
+        tab.classList.add('active');
+    }
+    
+    console.log(`🔄 Mudando para aba: ${tabName}`);
+}
+
+// Funções de empresas
+async function carregarEmpresas() {
+    try {
+        console.log('📊 Carregando dados das empresas...');
+        
+        for (const row of document.querySelectorAll('#empresas-list tr[data-empresa-id]')) {
+            const empresaId = row.dataset.empresaId;
+            
+            const response = await fetch(`/tarefas-melhoradas/api/empresa/${empresaId}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const countBadge = document.getElementById(`tarefas-count-${empresaId}`);
+                if (countBadge) {
+                    countBadge.textContent = `${data.empresa.tarefas_ativas} tarefas`;
+                }
+            }
+        }
+        
+        console.log('✅ Dados das empresas carregados!');
+    } catch (error) {
+        console.error('❌ Erro ao carregar empresas:', error);
+    }
+}
+
+async function verEmpresa(empresaId) {
+    try {
+        console.log(`👁️ Visualizando empresa ${empresaId}...`);
+        
+        const response = await fetch(`/tarefas-melhoradas/api/empresa/${empresaId}/tarefas`);
+        const data = await response.json();
+        
+        if (data.success) {
+            empresaSelecionada = empresaId;
+            mostrarDetalhesEmpresa(data.tarefas);
+            $('#modalVerEmpresa').modal('show');
+        } else {
+            showAlertModal('Erro', data.message, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar empresa:', error);
+        showAlertModal('Erro', 'Erro ao carregar dados da empresa', 'error');
+    }
+}
+
+function mostrarDetalhesEmpresa(tarefas) {
+    const content = document.getElementById('empresa-detalhes-content');
+    
+    let html = `
+        <div class="row">
+            <div class="col-md-6">
+                <h5><i class="fas fa-tasks"></i> Tarefas Ativas (${tarefas.ativas.length})</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Tarefa</th>
+                                <th>Tipo</th>
+                                <th>Responsável</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    tarefas.ativas.forEach(tarefa => {
+        html += `
+            <tr>
+                <td>${tarefa.nome}</td>
+                <td><span class="badge badge-info">${tarefa.tipo}</span></td>
+                <td>${tarefa.responsavel.nome}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h5><i class="fas fa-history"></i> Tarefas Históricas (${tarefas.historicas.length})</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Tarefa</th>
+                                <th>Tipo</th>
+                                <th>Responsável</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    tarefas.historicas.forEach(tarefa => {
+        html += `
+            <tr>
+                <td>${tarefa.nome}</td>
+                <td><span class="badge badge-info">${tarefa.tipo}</span></td>
+                <td>${tarefa.responsavel.nome}</td>
+                <td><span class="badge badge-secondary">Histórico</span></td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+}
+
+async function alterarTributacao(empresaId) {
+    try {
+        console.log(`🔄 Alterando tributação da empresa ${empresaId}...`);
+        
+        empresaSelecionada = empresaId;
+        
+        // Carregar dados da empresa
+        const response = await fetch(`/tarefas-melhoradas/api/empresa/${empresaId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarWizardAlteracao(data.empresa);
+            $('#modalAlterarTributacao').modal('show');
+        } else {
+            showAlertModal('Erro', data.message, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao alterar tributação:', error);
+        showAlertModal('Erro', 'Erro ao carregar dados da empresa', 'error');
+    }
+}
+
+function mostrarWizardAlteracao(empresa) {
+    const content = document.getElementById('alterar-tributacao-content');
+    
+    let html = `
+        <div class="wizard-step active" id="step-1">
+            <h5><i class="fas fa-info-circle"></i> Passo 1: Informações da Empresa</h5>
+            <div class="alert alert-info">
+                <strong>Empresa:</strong> ${empresa.nome}<br>
+                <strong>Tributação Atual:</strong> ${empresa.tributacao_atual ? empresa.tributacao_atual.nome : 'Não definida'}<br>
+                <strong>Tarefas Ativas:</strong> ${empresa.tarefas_ativas}
+            </div>
+        </div>
+        
+        <div class="wizard-step hidden" id="step-2">
+            <h5><i class="fas fa-exchange-alt"></i> Passo 2: Nova Tributação</h5>
+            <div class="form-group">
+                <label>Selecione a nova tributação:</label>
+                <select class="form-control" id="nova-tributacao" onchange="carregarTarefasNovaTributacao()">
+                    <option value="">Selecione uma tributação</option>
+                    {% for tributacao in tributacoes %}
+                    <option value="{{ tributacao.id }}">{{ tributacao.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div class="wizard-step hidden" id="step-3">
+            <h5><i class="fas fa-tasks"></i> Passo 3: Configurar Responsáveis</h5>
+            <div id="tarefas-nova-tributacao">
+                <!-- Será preenchido via JavaScript -->
+            </div>
+        </div>
+        
+        <div class="wizard-step hidden" id="step-4">
+            <h5><i class="fas fa-check"></i> Passo 4: Confirmação</h5>
+            <div id="resumo-alteracao">
+                <!-- Será preenchido via JavaScript -->
+            </div>
+        </div>
+        
+        <div class="wizard-navigation mt-3">
+            <button type="button" class="btn btn-secondary" onclick="anteriorPasso()" id="btn-anterior" disabled>
+                <i class="fas fa-arrow-left"></i> Anterior
+            </button>
+            <button type="button" class="btn btn-primary" onclick="proximoPasso()" id="btn-proximo">
+                Próximo <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+}
+
+let passoAtual = 1;
+const totalPassos = 4;
+
+function proximoPasso() {
+    if (passoAtual < totalPassos) {
+        // Validar passo atual
+        if (validarPasso(passoAtual)) {
+            document.getElementById(`step-${passoAtual}`).classList.add('hidden');
+            passoAtual++;
+            document.getElementById(`step-${passoAtual}`).classList.remove('hidden');
+            
+            // Atualizar botões
+            document.getElementById('btn-anterior').disabled = false;
+            if (passoAtual === totalPassos) {
+                document.getElementById('btn-proximo').style.display = 'none';
+                document.getElementById('confirmar-alteracao').style.display = 'inline-block';
+            }
+        }
+    }
+}
+
+function anteriorPasso() {
+    if (passoAtual > 1) {
+        document.getElementById(`step-${passoAtual}`).classList.add('hidden');
+        passoAtual--;
+        document.getElementById(`step-${passoAtual}`).classList.remove('hidden');
+        
+        // Atualizar botões
+        if (passoAtual === 1) {
+            document.getElementById('btn-anterior').disabled = true;
+        }
+        document.getElementById('btn-proximo').style.display = 'inline-block';
+        document.getElementById('confirmar-alteracao').style.display = 'none';
+    }
+}
+
+function validarPasso(passo) {
+    switch (passo) {
+        case 2:
+            const novaTributacao = document.getElementById('nova-tributacao').value;
+            if (!novaTributacao) {
+                showAlertModal('Erro', 'Selecione uma tributação', 'error');
+                return false;
+            }
+            novaTributacaoId = novaTributacao;
+            return true;
+        case 3:
+            // Validar se pelo menos um responsável foi selecionado
+            return true;
+        default:
+            return true;
+    }
+}
+
+async function carregarTarefasNovaTributacao() {
+    try {
+        const tributacaoId = document.getElementById('nova-tributacao').value;
+        if (!tributacaoId) return;
+        
+        const response = await fetch(`/tarefas-melhoradas/api/tributacao/${tributacaoId}/tarefas`);
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarTarefasNovaTributacao(data.tarefas);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar tarefas:', error);
+    }
+}
+
+function mostrarTarefasNovaTributacao(tarefas) {
+    const container = document.getElementById('tarefas-nova-tributacao');
+    
+    let html = `
+        <div class="alert alert-info">
+            <strong>${tarefas.length} tarefas</strong> serão vinculadas à empresa.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Tarefa</th>
+                        <th>Tipo</th>
+                        <th>Responsável</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    tarefas.forEach(tarefa => {
+        html += `
+            <tr>
+                <td>${tarefa.nome}</td>
+                <td><span class="badge badge-info">${tarefa.tipo}</span></td>
+                <td>
+                    <select class="form-control form-control-sm" data-tarefa-id="${tarefa.id}">
+                        <option value="">Selecione um responsável</option>
+                        <!-- Será preenchido com usuários -->
+                    </select>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Carregar usuários nos selects
+    carregarUsuariosNosSelects();
+}
+
+async function carregarUsuariosNosSelects() {
+    try {
+        const response = await fetch('/api/usuarios');
+        const data = await response.json();
+        
+        if (data.success) {
+            const selects = document.querySelectorAll('select[data-tarefa-id]');
+            selects.forEach(select => {
+                data.usuarios.forEach(usuario => {
+                    const option = document.createElement('option');
+                    option.value = usuario.id;
+                    option.textContent = usuario.nome;
+                    select.appendChild(option);
+                });
+            });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar usuários:', error);
+    }
+}
+
+// Funções de tarefas
+async function carregarTarefas() {
+    try {
+        console.log('📋 Carregando tarefas...');
+        
+        // Buscar tarefas via API
+        const response = await fetch('/tarefas-melhoradas/api/tarefas');
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarTarefas(data.tarefas);
+        } else {
+            // Fallback para dados do backend
+            mostrarTarefasBackend();
+        }
+        
+        console.log('✅ Tarefas carregadas!');
+    } catch (error) {
+        console.error('❌ Erro ao carregar tarefas:', error);
+        // Fallback para dados do backend
+        mostrarTarefasBackend();
+    }
+}
+
+function mostrarTarefas(tarefas) {
+    const tbody = document.getElementById('tarefas-tbody');
+    if (!tbody) return;
+    
+    let html = '';
+    tarefas.forEach(tarefa => {
+        html += `
+            <tr>
+                <td>${tarefa.nome}</td>
+                <td><span class="badge badge-info">${tarefa.tipo}</span></td>
+                <td>${tarefa.tributacao || 'N/A'}</td>
+                <td>${tarefa.setor || 'N/A'}</td>
+                <td>
+                    ${tarefa.tarefa_comum ? 
+                        '<span class="badge badge-success">Sim</span>' : 
+                        '<span class="badge badge-secondary">Não</span>'
+                    }
+                </td>
+                <td>
+                    ${tarefa.obrigatoria ? 
+                        '<span class="badge badge-primary">Obrigatória</span>' : 
+                        '<span class="badge badge-warning">Opcional</span>'
+                    }
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="editarTarefa(${tarefa.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="excluirTarefa(${tarefa.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    if (html) {
+        tbody.innerHTML = html;
+    } else {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma tarefa encontrada</td></tr>';
+    }
+}
+
+function mostrarTarefasBackend() {
+    const tbody = document.getElementById('tarefas-tbody');
+    if (!tbody) return;
+    
+    let html = '';
+    
+    // Usar dados do backend se disponíveis
+    {% if tarefas_filtradas %}
+    {% for tarefa in tarefas_filtradas %}
+    html += `
+        <tr>
+            <td>{{ tarefa.nome }}</td>
+            <td><span class="badge badge-info">{{ tarefa.tipo }}</span></td>
+            <td>{{ tarefa.tributacao.nome if tarefa.tributacao else 'N/A' }}</td>
+            <td>{{ tarefa.setor.nome if tarefa.setor else 'N/A' }}</td>
+            <td>
+                {% if tarefa.tarefa_comum %}
+                    <span class="badge badge-success">Sim</span>
+                {% else %}
+                    <span class="badge badge-secondary">Não</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if tarefa.obrigatoria %}
+                    <span class="badge badge-primary">Obrigatória</span>
+                {% else %}
+                    <span class="badge badge-warning">Opcional</span>
+                {% endif %}
+            </td>
+            <td>
+                <button class="btn btn-sm btn-info" onclick="editarTarefa({{ tarefa.id }})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="excluirTarefa({{ tarefa.id }})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
+    {% endfor %}
+    {% endif %}
+    
+    if (html) {
+        tbody.innerHTML = html;
+    } else {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma tarefa encontrada</td></tr>';
+    }
+}
+
+async function filtrarTarefas() {
+    const tributacaoId = document.getElementById('tributacao-filter').value;
+    console.log(`🔍 Filtrando tarefas por tributação: ${tributacaoId}`);
+    
+    try {
+        if (tributacaoId) {
+            // Carregar tarefas da tributação específica
+            const response = await fetch(`/tarefas-melhoradas/api/tributacao/${tributacaoId}/tarefas`);
+            const data = await response.json();
+            
+            if (data.success) {
+                mostrarTarefasFiltradas(data.tarefas);
+            } else {
+                console.error('Erro ao filtrar tarefas:', data.message);
+            }
+        } else {
+            // Mostrar todas as tarefas (recarregar)
+            carregarTarefas();
+        }
+    } catch (error) {
+        console.error('❌ Erro ao filtrar tarefas:', error);
+    }
+}
+
+function mostrarTarefasFiltradas(tarefas) {
+    const tbody = document.getElementById('tarefas-tbody');
+    if (!tbody) return;
+    
+    let html = '';
+    tarefas.forEach(tarefa => {
+        html += `
+            <tr>
+                <td>${tarefa.nome}</td>
+                <td><span class="badge badge-info">${tarefa.tipo}</span></td>
+                <td>N/A</td>
+                <td>
+                    ${tarefa.tarefa_comum ? 
+                        '<span class="badge badge-success">Sim</span>' : 
+                        '<span class="badge badge-secondary">Não</span>'
+                    }
+                </td>
+                <td>
+                    ${tarefa.obrigatoria ? 
+                        '<span class="badge badge-primary">Obrigatória</span>' : 
+                        '<span class="badge badge-warning">Opcional</span>'
+                    }
+                </td>
+            </tr>
+        `;
+    });
+    
+    if (html) {
+        tbody.innerHTML = html;
+    } else {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma tarefa encontrada para esta tributação</td></tr>';
+    }
+}
+
+// Funções de busca
+function configurarBuscaTarefas() {
+    const input = document.getElementById('busca-tarefas');
+    const resultados = document.getElementById('resultados-busca-tarefas');
+    
+    if (!input || !resultados) return;
+    
+    let timeoutId;
+    
+    input.addEventListener('input', function() {
+        clearTimeout(timeoutId);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            resultados.style.display = 'none';
+            return;
+        }
+        
+        timeoutId = setTimeout(() => {
+            buscarTarefas(query);
+        }, 300);
+    });
+    
+    // Esconder resultados ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !resultados.contains(e.target)) {
+            resultados.style.display = 'none';
+        }
+    });
+}
+
+async function buscarTarefas(query) {
+    try {
+        const response = await fetch(`/tarefas-melhoradas/api/tarefas/buscar?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarResultadosBusca(data.tarefas, 'resultados-busca-tarefas');
+        }
+    } catch (error) {
+        console.error('Erro na busca:', error);
+    }
+}
+
+function mostrarResultadosBusca(items, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    let html = '';
+    items.forEach(item => {
+        html += `<div class="search-item" onclick="selecionarItem('${item.nome}', ${item.id})">${item.nome}</div>`;
+    });
+    
+    container.innerHTML = html;
+    container.style.display = html ? 'block' : 'none';
+}
+
+function selecionarItem(nome, id) {
+    // Implementar seleção de item
+    console.log('Item selecionado:', nome, id);
+}
+
+// Funções de criação de tarefas
+function mostrarModalCriarTarefa() {
+    $('#modalCriarTarefa').modal('show');
+}
+
+async function criarTarefa() {
+    const nome = document.getElementById('tarefa-nome').value;
+    const tipo = document.getElementById('tarefa-tipo').value;
+    const setor = document.getElementById('tarefa-setor').value;
+    const tributacao = document.getElementById('tarefa-tributacao').value;
+    const descricao = document.getElementById('tarefa-descricao').value;
+    const comum = document.getElementById('tarefa-comum').checked;
+    const obrigatoria = document.getElementById('tarefa-obrigatoria').checked;
+    
+    if (!nome || !tipo || !setor || !tributacao) {
+        showAlertModal('Erro', 'Preencha todos os campos obrigatórios', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/tarefas-melhoradas/api/tarefas', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                nome: nome,
+                tipo: tipo,
+                setor_id: setor,
+                tributacao_id: tributacao,
+                descricao: descricao,
+                tarefa_comum: comum,
+                obrigatoria: obrigatoria
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlertModal('Sucesso', 'Tarefa criada com sucesso!', 'success');
+            $('#modalCriarTarefa').modal('hide');
+            carregarTarefas(); // Recarregar lista
+            limparFormularioTarefa();
+        } else {
+            showAlertModal('Erro', data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao criar tarefa:', error);
+        showAlertModal('Erro', 'Erro ao criar tarefa', 'error');
+    }
+}
+
+function limparFormularioTarefa() {
+    document.getElementById('form-criar-tarefa').reset();
+}
+
+function editarTarefa(id) {
+    console.log('Editar tarefa:', id);
+    // Implementar edição
+}
+
+function excluirTarefa(id) {
+    showConfirmModal(
+        'Confirmar Exclusão',
+        'Tem certeza que deseja excluir esta tarefa?',
+        async () => {
+            try {
+                const response = await fetch(`/tarefas-melhoradas/api/tarefas/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlertModal('Sucesso', 'Tarefa excluída com sucesso!', 'success');
+                    carregarTarefas();
+                } else {
+                    showAlertModal('Erro', data.message, 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir tarefa:', error);
+                showAlertModal('Erro', 'Erro ao excluir tarefa', 'error');
+            }
+        }
+    );
+}
+
+function limparFiltros() {
+    document.getElementById('tributacao-filter').value = '';
+    document.getElementById('setor-filter').value = '';
+    document.getElementById('busca-tarefas').value = '';
+    carregarTarefas();
+}
+
+// Funções de responsáveis
+async function carregarResponsaveis() {
+    try {
+        console.log('👥 Carregando responsáveis...');
+        
+        const response = await fetch('/tarefas-melhoradas/api/responsaveis-padrao');
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarResponsaveis(data.responsaveis);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar responsáveis:', error);
+    }
+}
+
+function mostrarResponsaveis(responsaveis) {
+    const tbody = document.getElementById('responsaveis-tbody');
+    
+    let html = '';
+    responsaveis.forEach(resp => {
+        html += `
+            <tr>
+                <td>${resp.setor.nome}</td>
+                <td>${resp.tributacao.nome}</td>
+                <td>${resp.responsavel.nome}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="removerResponsavel(${resp.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+async function carregarUsuarios() {
+    try {
+        const response = await fetch('/api/usuarios');
+        const data = await response.json();
+        
+        if (data.success) {
+            const select = document.getElementById('responsavel-select');
+            data.usuarios.forEach(usuario => {
+                const option = document.createElement('option');
+                option.value = usuario.id;
+                option.textContent = usuario.nome;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar usuários:', error);
+    }
+}
+
+async function salvarResponsavelPadrao(event) {
+    event.preventDefault();
+    
+    try {
+        const formData = {
+            setor_id: document.getElementById('setor-select').value,
+            tributacao_id: document.getElementById('tributacao-select').value,
+            responsavel_id: document.getElementById('responsavel-select').value
+        };
+        
+        const response = await fetch('/tarefas-melhoradas/api/responsaveis-padrao', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlertModal('Sucesso', data.message, 'success');
+            document.getElementById('responsavel-form').reset();
+            carregarResponsaveis();
+        } else {
+            showAlertModal('Erro', data.message, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao salvar responsável:', error);
+        showAlertModal('Erro', 'Erro ao salvar responsável padrão', 'error');
+    }
+}
+
+// Confirmação de alteração de tributação
+document.getElementById('confirmar-alteracao').addEventListener('click', async function() {
+    try {
+        console.log('✅ Confirmando alteração de tributação...');
+        
+        // Coletar responsáveis selecionados
+        const responsaveis = {};
+        const selects = document.querySelectorAll('select[data-tarefa-id]');
+        selects.forEach(select => {
+            if (select.value) {
+                responsaveis[select.dataset.tarefaId] = select.value;
+            }
+        });
+        
+        const response = await fetch(`/tarefas-melhoradas/api/empresa/${empresaSelecionada}/alterar-tributacao`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                tributacao_id: novaTributacaoId,
+                responsaveis: responsaveis,
+                motivo: 'Mudança de tributação via sistema melhorado'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlertModal('Sucesso', data.message, 'success');
+            $('#modalAlterarTributacao').modal('hide');
+            carregarEmpresas(); // Recarregar dados
+        } else {
+            showAlertModal('Erro', data.message, 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao confirmar alteração:', error);
+        showAlertModal('Erro', 'Erro ao alterar tributação', 'error');
+    }
+});
+
+// Funções de vinculação de responsáveis
+function mostrarModalVincularResponsavel() {
+    $('#modalVincularResponsavel').modal('show');
+    carregarTarefasModal();
+    configurarBuscaResponsavelModal();
+}
+
+function configurarBuscaResponsavelModal() {
+    const input = document.getElementById('busca-responsavel-modal');
+    const resultados = document.getElementById('resultados-busca-responsavel-modal');
+    
+    if (!input || !resultados) return;
+    
+    let timeoutId;
+    
+    input.addEventListener('input', function() {
+        clearTimeout(timeoutId);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            resultados.style.display = 'none';
+            return;
+        }
+        
+        timeoutId = setTimeout(() => {
+            buscarResponsaveisModal(query);
+        }, 300);
+    });
+}
+
+async function buscarResponsaveisModal(query) {
+    try {
+        const response = await fetch(`/api/usuarios?q=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarResultadosBuscaResponsavel(data.usuarios);
+        }
+    } catch (error) {
+        console.error('Erro na busca de responsáveis:', error);
+    }
+}
+
+function mostrarResultadosBuscaResponsavel(usuarios) {
+    const container = document.getElementById('resultados-busca-responsavel-modal');
+    if (!container) return;
+    
+    let html = '';
+    usuarios.forEach(usuario => {
+        html += `<div class="search-item" onclick="selecionarResponsavel(${usuario.id}, '${usuario.nome}')">${usuario.nome}</div>`;
+    });
+    
+    container.innerHTML = html;
+    container.style.display = html ? 'block' : 'none';
+}
+
+function selecionarResponsavel(id, nome) {
+    const container = document.getElementById('responsavel-selecionado');
+    const info = document.getElementById('responsavel-info');
+    
+    if (container && info) {
+        info.innerHTML = `${nome}`;
+        container.classList.remove('hidden');
+        
+        // Esconder resultados da busca
+        document.getElementById('resultados-busca-responsavel-modal').style.display = 'none';
+        document.getElementById('busca-responsavel-modal').value = nome;
+        
+        // Armazenar ID do responsável selecionado
+        window.responsavelSelecionadoId = id;
+    }
+}
+
+async function carregarTarefasModal() {
+    try {
+        const response = await fetch('/tarefas-melhoradas/api/tarefas');
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarTarefasModal(data.tarefas);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar tarefas para modal:', error);
+        // Fallback para dados do backend
+        mostrarTarefasModalBackend();
+    }
+}
+
+function mostrarTarefasModal(tarefas) {
+    const container = document.getElementById('lista-tarefas-modal');
+    if (!container) return;
+    
+    let html = '';
+    tarefas.forEach(tarefa => {
+        html += `
+            <div class="task-item">
+                <input type="checkbox" class="task-checkbox" id="task-${tarefa.id}" value="${tarefa.id}">
+                <div class="task-info">
+                    <strong>${tarefa.nome}</strong>
+                    <div class="task-type">${tarefa.tipo} - ${tarefa.setor || 'N/A'}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function mostrarTarefasModalBackend() {
+    const container = document.getElementById('lista-tarefas-modal');
+    if (!container) return;
+    
+    let html = '';
+    
+    // Usar dados do backend se disponíveis
+    {% if tarefas_filtradas %}
+    {% for tarefa in tarefas_filtradas %}
+    html += `
+        <div class="task-item">
+            <input type="checkbox" class="task-checkbox" id="task-{{ tarefa.id }}" value="{{ tarefa.id }}">
+            <div class="task-info">
+                <strong>{{ tarefa.nome }}</strong>
+                <div class="task-type">{{ tarefa.tipo }} - {{ tarefa.setor.nome if tarefa.setor else 'N/A' }}</div>
+            </div>
+        </div>
+    `;
+    {% endfor %}
+    {% endif %}
+    
+    container.innerHTML = html;
+}
+
+async function confirmarVinculacao() {
+    if (!window.responsavelSelecionadoId) {
+        showAlertModal('Erro', 'Selecione um responsável primeiro', 'error');
+        return;
+    }
+    
+    const tarefasSelecionadas = [];
+    document.querySelectorAll('#lista-tarefas-modal input[type="checkbox"]:checked').forEach(checkbox => {
+        tarefasSelecionadas.push(parseInt(checkbox.value));
+    });
+    
+    if (tarefasSelecionadas.length === 0) {
+        showAlertModal('Erro', 'Selecione pelo menos uma tarefa', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/tarefas-melhoradas/api/vincular-responsavel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                responsavel_id: window.responsavelSelecionadoId,
+                tarefas: tarefasSelecionadas
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showAlertModal('Sucesso', 'Responsável vinculado com sucesso!', 'success');
+            $('#modalVincularResponsavel').modal('hide');
+            carregarResponsaveis();
+            limparModalVinculacao();
+        } else {
+            showAlertModal('Erro', data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao vincular responsável:', error);
+        showAlertModal('Erro', 'Erro ao vincular responsável', 'error');
+    }
+}
+
+function limparModalVinculacao() {
+    document.getElementById('busca-responsavel-modal').value = '';
+    document.getElementById('responsavel-selecionado').classList.add('hidden');
+    document.querySelectorAll('#lista-tarefas-modal input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    window.responsavelSelecionadoId = null;
+}
+
+function filtrarResponsaveis() {
+    // Implementar filtro de responsáveis
+    carregarResponsaveis();
+}
+</script>
+
+<!-- Modal para Criar Tarefa -->
+<div class="modal fade" id="modalCriarTarefa" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-plus"></i> Nova Tarefa
+        </h5>
+        <button type="button" class="close" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="form-criar-tarefa">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="tarefa-nome">Nome da Tarefa *</label>
+                <input type="text" id="tarefa-nome" class="form-control" required>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="tarefa-tipo">Tipo *</label>
+                <select id="tarefa-tipo" class="form-control" required>
+                  <option value="">Selecione o tipo</option>
+                  <option value="Mensal">Mensal</option>
+                  <option value="Trimestral">Trimestral</option>
+                  <option value="Anual">Anual</option>
+                  <option value="Sazonal">Sazonal</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="tarefa-setor">Setor *</label>
+                <select id="tarefa-setor" class="form-control" required>
+                  <option value="">Selecione o setor</option>
+                  {% for setor in setores %}
+                  <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="tarefa-tributacao">Tributação *</label>
+                <select id="tarefa-tributacao" class="form-control" required>
+                  <option value="">Selecione a tributação</option>
+                  {% for tributacao in tributacoes %}
+                  <option value="{{ tributacao.id }}">{{ tributacao.nome }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="tarefa-descricao">Descrição</label>
+            <textarea id="tarefa-descricao" class="form-control" rows="3"></textarea>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check">
+                <input type="checkbox" id="tarefa-comum" class="form-check-input">
+                <label for="tarefa-comum" class="form-check-label">
+                  Tarefa Comum (aplica a ambas tributações)
+                </label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check">
+                <input type="checkbox" id="tarefa-obrigatoria" class="form-check-input" checked>
+                <label for="tarefa-obrigatoria" class="form-check-label">
+                  Obrigatória
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" onclick="criarTarefa()">
+          <i class="fas fa-save"></i> Criar Tarefa
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Vincular Responsável -->
+<div class="modal fade" id="modalVincularResponsavel" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-link"></i> Vincular Responsável
+        </h5>
+        <button type="button" class="close" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Buscar Responsável:</label>
+              <div class="search-container">
+                <input type="text" id="busca-responsavel-modal" class="form-control" placeholder="Digite o nome do responsável...">
+                <div id="resultados-busca-responsavel-modal" class="search-results"></div>
+              </div>
+            </div>
+            <div id="responsavel-selecionado" class="hidden">
+              <div class="alert alert-info">
+                <strong>Responsável Selecionado:</strong>
+                <div id="responsavel-info"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="form-group">
+              <label>Selecionar Tarefas:</label>
+              <div id="lista-tarefas-modal" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;">
+                <!-- Tarefas serão carregadas aqui -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="confirmarVinculacao()">
+          <i class="fas fa-link"></i> Vincular
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.wizard-step {
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.wizard-step.active {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+}
+
+.wizard-navigation {
+    text-align: center;
+    padding: 20px;
+    border-top: 1px solid #ddd;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Sistema de busca */
+.search-container {
+    position: relative;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.search-results .search-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.search-results .search-item:hover {
+    background-color: #f8f9fa;
+}
+
+.search-results .search-item:last-child {
+    border-bottom: none;
+}
+
+.search-results .search-item.selected {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Checkbox personalizado para tarefas */
+.task-checkbox {
+    margin-right: 8px;
+}
+
+.task-item {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+}
+
+.task-item:last-child {
+    border-bottom: none;
+}
+
+.task-item:hover {
+    background-color: #f8f9fa;
+}
+
+.task-info {
+    flex: 1;
+}
+
+.task-type {
+    font-size: 0.8em;
+    color: #666;
+}
+</style>
+{% endblock %}

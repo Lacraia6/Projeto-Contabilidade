@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciar Empresas - Supervisor{% endblock %}
+
+{% block content %}
+<section id="supervisor-empresas" class="tab-content active dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-building"></i> Gerenciar Empresas</h1>
+    <p>Criar e gerenciar empresas do sistema</p>
+    <div class="header-actions">
+      <button class="btn btn-primary" onclick="showModal('modalCriarEmpresa')">
+        <i class="fas fa-plus"></i> Nova Empresa
+      </button>
+      <a href="/supervisor" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar
+      </a>
+    </div>
+  </div>
+
+  <!-- Filtros e Consulta -->
+  <div class="dashboard-filters">
+    <div class="card-header">
+      <h3><i class="fas fa-search"></i> Consultar Empresas</h3>
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label for="filtroNome">Nome da Empresa:</label>
+        <input type="text" id="filtroNome" placeholder="Digite o nome da empresa...">
+      </div>
+      
+      <div class="form-group">
+        <label for="filtroCodigo">Código da Empresa:</label>
+        <input type="text" id="filtroCodigo" placeholder="Digite o código da empresa...">
+      </div>
+      
+      <div class="form-group">
+        <label for="filtroTributacao">Tributação:</label>
+        <select id="filtroTributacao">
+          <option value="">Todas as tributações</option>
+          <option value="Simples Nacional">Simples Nacional</option>
+          <option value="Regime Normal">Regime Normal</option>
+          <option value="Sem tributação">Sem tributação</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="filtroStatus">Status:</label>
+        <select id="filtroStatus">
+          <option value="">Todos os status</option>
+          <option value="Ativa">Ativa</option>
+          <option value="Inativa">Inativa</option>
+        </select>
+      </div>
+      
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="aplicarFiltros()">
+          <i class="fas fa-search"></i> Filtrar
+        </button>
+        <button class="btn btn-secondary" onclick="limparFiltros()">
+          <i class="fas fa-times"></i> Limpar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de Empresas -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-list"></i> Empresas Cadastradas</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nome</th>
+            <th>Tributação</th>
+            <th>Criada em</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="empresasTableBody">
+          {% for empresa in empresas %}
+          <tr data-empresa-id="{{ empresa.id }}">
+            <td>{{ empresa.codigo }}</td>
+            <td>{{ empresa.nome }}</td>
+            <td>
+              {% if empresa.tributacao %}
+                {% if empresa.tributacao.nome == 'Simples Nacional' %}
+                  <span class="badge badge-simples-nacional">{{ empresa.tributacao.nome }}</span>
+                {% elif empresa.tributacao.nome == 'Regime Normal' %}
+                  <span class="badge badge-regime-normal">{{ empresa.tributacao.nome }}</span>
+                {% else %}
+                  <span class="badge badge-info">{{ empresa.tributacao.nome }}</span>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-secondary">Sem tributação</span>
+              {% endif %}
+            </td>
+            <td>{{ empresa.criado_em.strftime('%d/%m/%Y') if empresa.criado_em else 'N/A' }}</td>
+            <td>
+              {% if empresa.ativo %}
+                <span class="badge badge-success">Ativa</span>
+              {% else %}
+                <span class="badge badge-danger">Inativa</span>
+              {% endif %}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-warning" onclick="alterarTributacao({{ empresa.id }}, '{{ empresa.tributacao.nome if empresa.tributacao else '' }}')">
+                <i class="fas fa-edit"></i> Tributação
+              </button>
+              <button class="btn btn-sm btn-success" onclick="criarChecklist({{ empresa.id }}, '{{ empresa.nome }}')">
+                <i class="fas fa-tasks"></i> Checklist
+              </button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center">Nenhuma empresa encontrada</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Modal para criar empresa -->
+<div id="modalCriarEmpresa" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-plus"></i> Nova Empresa</h3>
+      <span class="close" onclick="closeModal('modalCriarEmpresa')">&times;</span>
+    </div>
+    <div class="modal-body">
+      <form id="formCriarEmpresa">
+        <div class="form-group">
+          <label for="codigoEmpresa">Código da Empresa *</label>
+          <input type="text" id="codigoEmpresa" name="codigo" class="form-control" required placeholder="Ex: EMP001">
+        </div>
+        
+        <div class="form-group">
+          <label for="nomeEmpresa">Nome da Empresa *</label>
+          <input type="text" id="nomeEmpresa" name="nome" class="form-control" required placeholder="Ex: Empresa Exemplo Ltda">
+        </div>
+        
+        <div class="form-group">
+          <label for="tributacaoEmpresa">Tributação</label>
+          <select id="tributacaoEmpresa" name="tributacao_id" class="form-control">
+            <option value="">Selecione uma tributação</option>
+            <option value="1">Simples Nacional</option>
+            <option value="2">Regime Normal</option>
+          </select>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalCriarEmpresa')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Criar Empresa</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para alterar tributação -->
+<div id="modalAlterarTributacao" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-edit"></i> Alterar Tributação</h3>
+      <span class="close" onclick="closeModal('modalAlterarTributacao')">&times;</span>
+    </div>
+    <div class="modal-body">
+      <form id="formAlterarTributacao">
+        <input type="hidden" id="empresaIdTributacao" name="empresa_id">
+        
+        <div class="form-group">
+          <label for="tributacaoAtual">Tributação Atual:</label>
+          <input type="text" id="tributacaoAtual" class="form-control" readonly>
+        </div>
+        
+        <div class="form-group">
+          <label for="novaTributacao">Nova Tributação:</label>
+          <select id="novaTributacao" name="tributacao_id" class="form-control">
+            <option value="">Selecione uma tributação</option>
+            <option value="1">Simples Nacional</option>
+            <option value="2">Regime Normal</option>
+          </select>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalAlterarTributacao')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Alterar Tributação</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// Debug para modais
+console.log('🔧 Carregando painel de empresas do supervisor...');
+
+// Verificar se os modais existem
+document.addEventListener('DOMContentLoaded', function() {
+  const modalCriar = document.getElementById('modalCriarEmpresa');
+  const modalTributacao = document.getElementById('modalAlterarTributacao');
+  
+  console.log('📋 Modal criar empresa:', modalCriar ? '✅ Encontrado' : '❌ Não encontrado');
+  console.log('📋 Modal tributação:', modalTributacao ? '✅ Encontrado' : '❌ Não encontrado');
+  
+  // Verificar se a função showModal existe
+  if (typeof showModal === 'function') {
+    console.log('✅ Função showModal disponível');
+  } else {
+    console.log('❌ Função showModal não encontrada');
+  }
+  
+  // Adicionar listener de debug para o botão
+  const btnCriar = document.querySelector('button[onclick*="modalCriarEmpresa"]');
+  if (btnCriar) {
+    btnCriar.addEventListener('click', function() {
+      console.log('🖱️ Botão criar empresa clicado');
+    });
+  }
+});
+
+// Formulário de criar empresa
+document.getElementById('formCriarEmpresa').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const formData = new FormData(this);
+  const data = {
+    codigo: formData.get('codigo'),
+    nome: formData.get('nome'),
+    tributacao_id: formData.get('tributacao_id') || null
+  };
+  
+  fetch('/supervisor/empresas/criar', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify(data)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showFeedback('Empresa criada com sucesso!', 'success');
+      closeModal('modalCriarEmpresa');
+      
+      // Perguntar se quer criar checklist
+      if (confirm('Empresa criada com sucesso! Deseja criar um checklist para esta empresa agora?')) {
+        window.location.href = `/supervisor/checklists/criar?empresa_id=${data.empresa_id}`;
+      } else {
+        // Recarregar página após 1 segundo
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      }
+    } else {
+      showFeedback(data.message || 'Erro ao criar empresa', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    showFeedback('Erro ao criar empresa', 'error');
+  });
+});
+
+// Função para alterar tributação
+function alterarTributacao(empresaId, tributacaoAtual) {
+  document.getElementById('empresaIdTributacao').value = empresaId;
+  document.getElementById('tributacaoAtual').value = tributacaoAtual || 'Sem tributação';
+  document.getElementById('novaTributacao').value = '';
+  showModal('modalAlterarTributacao');
+}
+
+// Formulário de alterar tributação
+document.getElementById('formAlterarTributacao').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const empresaId = document.getElementById('empresaIdTributacao').value;
+  const tributacaoId = document.getElementById('novaTributacao').value;
+  
+  fetch(`/supervisor/empresas/${empresaId}/tributacao`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      tributacao_id: tributacaoId || null
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showFeedback('Tributação alterada com sucesso!', 'success');
+      closeModal('modalAlterarTributacao');
+      // Recarregar página após 1 segundo
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      showFeedback(data.message || 'Erro ao alterar tributação', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    showFeedback('Erro ao alterar tributação', 'error');
+  });
+});
+
+// Função para criar checklist
+function criarChecklist(empresaId, empresaNome) {
+  if (confirm(`Deseja criar um checklist para a empresa "${empresaNome}"?`)) {
+    window.location.href = `/supervisor/checklists/criar?empresa_id=${empresaId}`;
+  }
+}
+
+// Funções de filtro
+function aplicarFiltros() {
+  const nome = document.getElementById('filtroNome').value.toLowerCase();
+  const codigo = document.getElementById('filtroCodigo').value.toLowerCase();
+  const tributacao = document.getElementById('filtroTributacao').value;
+  const status = document.getElementById('filtroStatus').value;
+  
+  const rows = document.querySelectorAll('#empresasTableBody tr');
+  
+  rows.forEach(row => {
+    if (row.querySelector('td')) { // Verificar se não é a linha de "nenhuma empresa encontrada"
+      const codigoEmpresa = row.cells[0].textContent.toLowerCase();
+      const nomeEmpresa = row.cells[1].textContent.toLowerCase();
+      const tributacaoEmpresa = row.cells[2].textContent;
+      const statusEmpresa = row.cells[4].textContent;
+      
+      let showRow = true;
+      
+      if (nome && !nomeEmpresa.includes(nome)) {
+        showRow = false;
+      }
+      
+      if (codigo && !codigoEmpresa.includes(codigo)) {
+        showRow = false;
+      }
+      
+      if (tributacao && !tributacaoEmpresa.includes(tributacao)) {
+        showRow = false;
+      }
+      
+      if (status && !statusEmpresa.includes(status)) {
+        showRow = false;
+      }
+      
+      row.style.display = showRow ? '' : 'none';
+    }
+  });
+}
+
+function limparFiltros() {
+  document.getElementById('filtroNome').value = '';
+  document.getElementById('filtroCodigo').value = '';
+  document.getElementById('filtroTributacao').value = '';
+  document.getElementById('filtroStatus').value = '';
+  
+  const rows = document.querySelectorAll('#empresasTableBody tr');
+  rows.forEach(row => {
+    row.style.display = '';
+  });
+}
+</script>
+{% endblock %}

@@ -14,7 +14,11 @@
   {% with messages = get_flashed_messages() %}
     {% if messages %}
       {% for message in messages %}
-        <script>alert("{{ message }}")</script>
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            showAlertModal("{{ message }}", 'info', 'Mensagem do Sistema');
+          });
+        </script>
       {% endfor %}
     {% endif %}
   {% endwith %}
@@ -31,6 +35,13 @@
         <li class="nav-item {% if aba == 'dashboard' %}active{% endif %}">
           <a href="{{ url_for('dashboard.return_dashboard') }}"><i class="fas fa-user-check"></i> Painel do Funcionário</a>
         </li>
+        <li class="nav-item {% if aba == 'checklist' %}active{% endif %}">
+          <a href="{{ url_for('checklist.index') }}">
+            <i class="fas fa-tasks"></i> Meus Checklists
+            <!-- Badge que aparece apenas quando há checklists pendentes -->
+            <span id="checklist-badge" class="notification-badge" style="display: none; visibility: hidden;">0</span>
+          </a>
+        </li>
         {% endif %}
 
         {% if session.get('user_tipo') == 'gerente' %}
@@ -41,10 +52,16 @@
           <a href="{{ url_for('empresas.return_page') }}"><i class="fas fa-building"></i> Empresas</a>
         </li> -->
         <li class="nav-item {% if aba == 'contas' %}active{% endif %}">
-          <a href="{{ url_for('accounts.return_page') }}"><i class="fas fa-clipboard-list"></i> Tarefas</a>
+          <a href="/tarefas-melhoradas/"><i class="fas fa-clipboard-list"></i> Tarefas</a>
         </li>
         <li class="nav-item {% if aba == 'relatorios' %}active{% endif %}">
           <a href="{{ url_for('relatorios.return_page') }}"><i class="fas fa-chart-bar"></i> Relatórios</a>
+        </li>
+        {% endif %}
+
+        {% if session.get('user_tipo') == 'supervisor' %}
+        <li class="nav-item {% if aba == 'supervisor' %}active{% endif %}">
+          <a href="{{ url_for('supervisor.index') }}"><i class="fas fa-user-shield"></i> Painel do Supervisor</a>
         </li>
         {% endif %}
 
@@ -68,8 +85,136 @@
     </main>
   </div>
 
+  <!-- Modal de Alerta Personalizado -->
+  <div id="alertModal" class="alert-modal">
+    <div class="alert-modal-content">
+      <div class="alert-modal-header" id="alertModalHeader">
+        <i class="alert-modal-icon" id="alertModalIcon"></i>
+        <h3 class="alert-modal-title" id="alertModalTitle">Alerta</h3>
+      </div>
+      <div class="alert-modal-body" id="alertModalBody">
+        <!-- Conteúdo da mensagem será inserido aqui -->
+      </div>
+      <div class="alert-modal-footer">
+        <button class="alert-modal-btn alert-modal-btn-primary" id="alertModalBtn" onclick="closeAlertModal()">
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- JS -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ url_for('static', filename='script.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Script para forçar clicabilidade -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🔧 Forçando clicabilidade dos elementos...');
+      
+      // Função para forçar clicabilidade
+      function forceClickability() {
+        // Forçar clicabilidade em todos os links
+        const allLinks = document.querySelectorAll('a');
+        allLinks.forEach(link => {
+          link.style.pointerEvents = 'auto';
+          link.style.cursor = 'pointer';
+          link.style.zIndex = '999';
+        });
+        
+        // Forçar clicabilidade em todos os botões
+        const allButtons = document.querySelectorAll('button, .btn');
+        allButtons.forEach(button => {
+          button.style.pointerEvents = 'auto';
+          button.style.cursor = 'pointer';
+          button.style.zIndex = '999';
+        });
+        
+        // Forçar clicabilidade no sidebar
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+          sidebar.style.pointerEvents = 'auto';
+          sidebar.style.zIndex = '1000';
+        }
+        
+        // Forçar clicabilidade nos itens de navegação
+        const navItems = document.querySelectorAll('.nav-item, .nav-item a');
+        navItems.forEach(item => {
+          item.style.pointerEvents = 'auto';
+          item.style.cursor = 'pointer';
+          item.style.zIndex = '1001';
+        });
+        
+        console.log(`✅ Forçada clicabilidade em ${allLinks.length} links e ${allButtons.length} botões`);
+      }
+      
+      // Executar imediatamente
+      forceClickability();
+      
+      // Executar novamente após um delay
+      setTimeout(forceClickability, 1000);
+      
+      // Executar quando a janela carregar completamente
+      window.addEventListener('load', forceClickability);
+      
+      // Verificar se há elementos sobrepondo
+      const sidebar = document.querySelector('.sidebar');
+      const mainContent = document.querySelector('.main-content');
+      
+      if (sidebar) {
+        console.log('✅ Sidebar encontrado');
+        console.log(`   Z-index: ${getComputedStyle(sidebar).zIndex}`);
+        console.log(`   Pointer-events: ${getComputedStyle(sidebar).pointerEvents}`);
+      }
+      
+      if (mainContent) {
+        console.log('✅ Main content encontrado');
+        console.log(`   Z-index: ${getComputedStyle(mainContent).zIndex}`);
+        console.log(`   Pointer-events: ${getComputedStyle(mainContent).pointerEvents}`);
+      }
+      
+      // Adicionar listener de debug para cliques
+      document.addEventListener('click', function(e) {
+        console.log('🖱️ Clique detectado em:', e.target);
+        console.log('   Tag:', e.target.tagName);
+        console.log('   Class:', e.target.className);
+        console.log('   ID:', e.target.id);
+      });
+      
+      console.log('✅ Script de clicabilidade carregado');
+      
+      // Verificar e corrigir modais invisíveis
+      function checkInvisibleModals() {
+        const modals = document.querySelectorAll('.modal, .alert-modal, .confirm-modal');
+        modals.forEach(modal => {
+          const isVisible = modal.classList.contains('show') || modal.style.display === 'flex' || modal.style.display === 'block';
+          if (!isVisible) {
+            modal.style.display = 'none';
+            modal.style.pointerEvents = 'none';
+            modal.classList.remove('show');
+          }
+        });
+        
+        // Verificar se há elementos com z-index alto que podem estar bloqueando
+        const highZIndexElements = document.querySelectorAll('[style*="z-index"]');
+        highZIndexElements.forEach(element => {
+          const zIndex = parseInt(getComputedStyle(element).zIndex);
+          if (zIndex > 1000 && !element.classList.contains('show') && element.style.display !== 'flex') {
+            element.style.pointerEvents = 'none';
+          }
+        });
+        
+        console.log('🔍 Verificação de modais invisíveis concluída');
+      }
+      
+      // Executar verificação
+      checkInvisibleModals();
+      
+      // Executar periodicamente
+      setInterval(checkInvisibleModals, 2000);
+    });
+  </script>
 </body>
 </html>

@@ -7,6 +7,11 @@
   <div class="dashboard-header">
     <h1><i class="fas fa-chart-line"></i> Painel do Gerente</h1>
     <p>Acompanhe o andamento das tarefas por setor, período e empresa</p>
+    <div class="header-actions">
+      <a href="/tarefas-melhoradas/" class="btn btn-warning" style="pointer-events: auto !important; z-index: 9999 !important;">
+        <i class="fas fa-cogs"></i> Sistema Melhorado de Tarefas
+      </a>
+    </div>
   </div>
 
   <!-- Container de Feedback -->
@@ -191,6 +196,28 @@
               <td>{{ responsavel.periodo_label }}</td>
             </tr>
             {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tarefas Anuais -->
+    <div class="table-container" id="tarefas-anuais-section" style="display: none;">
+      <h3><i class="fas fa-calendar-alt"></i> Tarefas Anuais</h3>
+      <p class="info-text">Tarefas que podem ser concluídas em qualquer data do ano</p>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Responsável</th>
+              <th>Empresa</th>
+              <th>Tarefa</th>
+              <th>Status</th>
+              <th>Ano</th>
+            </tr>
+          </thead>
+          <tbody id="tarefas-anuais-table-body">
+            <!-- Tarefas anuais serão carregadas via JavaScript -->
           </tbody>
         </table>
       </div>

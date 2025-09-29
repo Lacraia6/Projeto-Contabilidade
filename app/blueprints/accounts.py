@@ -9,54 +9,8 @@ bp = Blueprint('accounts', __name__, url_prefix='/tarefas')
 @bp.get('/')
 @bp.get('/page')
 def return_page():
-	setores = Setor.query.all()
-	tributacoes = Tributacao.query.all()
-	empresas = Empresa.query.order_by(Empresa.nome).all()
-	usuarios = Usuario.query.order_by(Usuario.nome).all()
-
-	# tarefas com nomes
-	tarefas = []
-	for t in Tarefa.query.all():
-		setor = next((s for s in setores if s.id == t.setor_id), None)
-		trib = next((tr for tr in tributacoes if tr.id == t.tributacao_id), None)
-		tarefas.append({
-			"id": t.id,
-			"nome": t.nome,
-			"tipo": t.tipo,
-			"descricao": t.descricao,
-			"setor_id": t.setor_id,
-			"setor_nome": setor.nome if setor else '-',
-			"tributacao_id": t.tributacao_id,
-			"tributacao_nome": trib.nome if trib else '-',
-		})
-
-	# relacionamentos
-	rels = []
-	for r in RelacionamentoTarefa.query.all():
-		emp = next((e for e in empresas if e.id == r.empresa_id), None)
-		tarefa = Tarefa.query.get(r.tarefa_id)
-		resp = Usuario.query.get(r.responsavel_id) if r.responsavel_id else None
-		rels.append({
-			"id": r.id,
-			"empresa_nome": emp.nome if emp else '-',
-			"tarefa_nome": tarefa.nome if tarefa else '-',
-			"responsavel_nome": resp.nome if resp else None,
-			"responsavel_id": r.responsavel_id,
-			"status": r.status,
-			"dia_vencimento": r.dia_vencimento,
-			"prazo_especifico": r.prazo_especifico.isoformat() if r.prazo_especifico else None,
-		})
-
-	return render_template(
-		'accounts.html',
-		aba='contas',
-		setores=setores,
-		tributacoes=tributacoes,
-		empresas=empresas,
-		usuarios=usuarios,
-		tarefas=tarefas,
-		rels=rels,
-	)
+	# Redirecionar para o novo sistema melhorado de tarefas
+	return redirect('/tarefas-melhoradas/')
 
 
 @bp.post('/create')

@@ -614,25 +614,113 @@ window.updateDashboardTable = function(data) {
 
   if (data.tarefas.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhuma tarefa encontrada</td></tr>';
-    return;
+  } else {
+    tbody.innerHTML = data.tarefas.map(tarefa => {
+      const statusClass = getStatusClass(tarefa.status);
+      const statusText = getStatusText(tarefa.status, tarefa.contador_retificacoes);
+      const actions = getDashboardActions(tarefa);
+      
+      return `
+        <tr>
+          <td>${tarefa.empresa_nome}</td>
+          <td>${tarefa.nome}</td>
+          <td>${tarefa.tipo}</td>
+          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td>${tarefa.vencimento}</td>
+          <td>${actions}</td>
+        </tr>
+      `;
+    }).join('');
   }
+  
+  // Carregar tarefas anuais
+  loadTarefasAnuais();
+  
+  // Carregar badge de checklists pendentes
+  loadChecklistBadge();
+};
 
-  tbody.innerHTML = data.tarefas.map(tarefa => {
-    const statusClass = getStatusClass(tarefa.status);
-    const statusText = getStatusText(tarefa.status, tarefa.contador_retificacoes);
-    const actions = getDashboardActions(tarefa);
+// Carregar tarefas anuais
+window.loadTarefasAnuais = function() {
+  fetch('/api/dashboard/tarefas-anuais', {
+    credentials: 'same-origin'
+  })
+  .then(response => {
+    if (response.status === 302 || response.redirected) {
+      return Promise.reject('Erro de autenticação');
+    }
+    return response.json();
+  })
+  .then(data => {
+    const tbody = document.getElementById('tarefas-anuais-table-body');
+    const section = document.getElementById('tarefas-anuais-section');
     
-    return `
-      <tr>
-        <td>${tarefa.empresa_nome}</td>
-        <td>${tarefa.nome}</td>
-        <td>${tarefa.tipo}</td>
-        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-        <td>${tarefa.vencimento}</td>
-        <td>${actions}</td>
-      </tr>
-    `;
-  }).join('');
+    if (!tbody || !section) return;
+    
+    if (data.success && data.tarefas_anuais && data.tarefas_anuais.length > 0) {
+      // Mostrar seção de tarefas anuais
+      section.style.display = 'block';
+      
+      tbody.innerHTML = data.tarefas_anuais.map(tarefa => {
+        const statusClass = getStatusClass(tarefa.status);
+        const statusText = getStatusText(tarefa.status, tarefa.contador_retificacoes);
+        const actions = getDashboardActions(tarefa);
+        
+        return `
+          <tr>
+            <td>${tarefa.empresa_nome}</td>
+            <td>${tarefa.nome}</td>
+            <td><span class="badge badge-info">${tarefa.tipo}</span></td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>${tarefa.vencimento}</td>
+            <td>${actions}</td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      // Ocultar seção se não há tarefas anuais
+      section.style.display = 'none';
+    }
+  })
+  .catch(error => {
+    console.error('Erro ao carregar tarefas anuais:', error);
+    const section = document.getElementById('tarefas-anuais-section');
+    if (section) {
+      section.style.display = 'none';
+    }
+  });
+};
+
+// ================================
+// FUNÇÕES ADMINISTRATIVAS
+// ================================
+
+// Modal para alterar senha
+window.showChangePasswordModal = function(userId, userName, userLogin) {
+  document.getElementById('password-user-id').value = userId;
+  document.getElementById('password-user-name').textContent = userName;
+  document.getElementById('password-user-login').textContent = userLogin;
+  document.getElementById('changePasswordForm').reset();
+  document.getElementById('password-user-id').value = userId; // Restaurar após reset
+  showModal('changePasswordModal');
+};
+
+window.closeChangePasswordModal = function() {
+  hideModal('changePasswordModal');
+};
+
+// Modal para alterar tributação
+window.showChangeTributacaoModal = function(empresaId, empresaNome, tributacaoId, tributacaoNome) {
+  document.getElementById('tributacao-empresa-id').value = empresaId;
+  document.getElementById('tributacao-empresa-name').textContent = empresaNome;
+  document.getElementById('tributacao-empresa-current').textContent = tributacaoNome;
+  document.getElementById('changeTributacaoForm').reset();
+  document.getElementById('tributacao-empresa-id').value = empresaId; // Restaurar após reset
+  showModal('changeTributacaoModal');
+};
+
+window.closeChangeTributacaoModal = function() {
+  hideModal('changeTributacaoModal');
 };
 
 // ================================
@@ -743,26 +831,140 @@ window.updateResponsaveisTable = function(responsaveis) {
 
   if (responsaveis.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma tarefa atribuída encontrada</td></tr>';
-    return;
+  } else {
+    tbody.innerHTML = responsaveis.map(responsavel => {
+      const statusClass = getStatusClass(responsavel.status);
+      const statusText = getStatusText(responsavel.status, responsavel.contador_retificacoes);
+      
+      // Converter período para formato brasileiro
+      const periodoFormatado = formatPeriodoBrasileiro(responsavel.periodo_label);
+      
+      return `
+        <tr>
+          <td>${responsavel.usuario_nome || 'Não atribuído'}</td>
+          <td>${responsavel.empresa_nome}</td>
+          <td>${responsavel.tarefa_nome}</td>
+          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td>${periodoFormatado}</td>
+        </tr>
+      `;
+    }).join('');
   }
+  
+  // Carregar tarefas anuais
+  loadTarefasAnuaisGerenciamento();
+};
 
-  tbody.innerHTML = responsaveis.map(responsavel => {
-    const statusClass = getStatusClass(responsavel.status);
-    const statusText = getStatusText(responsavel.status, responsavel.contador_retificacoes);
+// Carregar badge de checklists pendentes
+window.loadChecklistBadge = function() {
+  console.log('🔔 Carregando badge de checklists pendentes...');
+  
+  fetch('/checklist/api/checklists-pendentes', {
+    credentials: 'same-origin'
+  })
+  .then(response => {
+    if (response.status === 302 || response.redirected) {
+      return Promise.reject('Erro de autenticação');
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('📊 Dados do badge recebidos:', data);
     
-    // Converter período para formato brasileiro
-    const periodoFormatado = formatPeriodoBrasileiro(responsavel.periodo_label);
+    const badge = document.getElementById('checklist-badge');
+    console.log('🎯 Badge encontrado:', !!badge);
     
-    return `
-      <tr>
-        <td>${responsavel.usuario_nome || 'Não atribuído'}</td>
-        <td>${responsavel.empresa_nome}</td>
-        <td>${responsavel.tarefa_nome}</td>
-        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-        <td>${periodoFormatado}</td>
-      </tr>
-    `;
-  }).join('');
+    if (badge && data.success) {
+      const pendentes = data.checklists_pendentes || 0;
+      console.log('📈 Checklists pendentes:', pendentes);
+      
+      if (pendentes > 0) {
+        badge.textContent = pendentes;
+        badge.style.display = 'flex';
+        badge.style.visibility = 'visible';
+        console.log('✅ Badge exibido com número:', pendentes);
+      } else {
+        badge.style.display = 'none';
+        badge.style.visibility = 'hidden';
+        badge.textContent = '';
+        console.log('ℹ️ Badge completamente ocultado (0 pendentes)');
+      }
+    } else if (badge) {
+      // Se não há dados válidos, ocultar o badge completamente
+      badge.style.display = 'none';
+      badge.style.visibility = 'hidden';
+      badge.textContent = '';
+      console.log('❌ Badge completamente ocultado (dados inválidos)');
+    } else {
+      console.log('❌ Badge não encontrado no DOM');
+    }
+  })
+  .catch(error => {
+    console.error('❌ Erro ao carregar badge de checklists:', error);
+  });
+};
+
+// Carregar tarefas anuais no painel do gerente
+window.loadTarefasAnuaisGerenciamento = function() {
+  console.log('🔄 Carregando tarefas anuais do gerenciamento...');
+  
+  fetch('/gerenciamento/api/tarefas-anuais', {
+    credentials: 'same-origin'
+  })
+  .then(response => {
+    if (response.status === 302 || response.redirected) {
+      return Promise.reject('Erro de autenticação');
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('📊 Dados recebidos:', data);
+    
+    const tbody = document.getElementById('tarefas-anuais-table-body');
+    const section = document.getElementById('tarefas-anuais-section');
+    
+    console.log('🔍 Elementos encontrados:', { tbody: !!tbody, section: !!section });
+    
+    if (!tbody || !section) {
+      console.log('❌ Elementos não encontrados, tentando novamente em 500ms...');
+      setTimeout(() => window.loadTarefasAnuaisGerenciamento(), 500);
+      return;
+    }
+    
+    if (data.success && data.tarefas_anuais && data.tarefas_anuais.length > 0) {
+      console.log('✅ Mostrando seção de tarefas anuais com', data.tarefas_anuais.length, 'tarefas');
+      // Mostrar seção de tarefas anuais
+      section.style.display = 'block';
+      
+      tbody.innerHTML = data.tarefas_anuais.map(tarefa => {
+        const statusClass = getStatusClass(tarefa.status);
+        const statusText = getStatusText(tarefa.status, tarefa.contador_retificacoes);
+        
+        console.log('📅 Processando tarefa:', tarefa.tarefa_nome, '-', tarefa.usuario_nome);
+        
+        return `
+          <tr>
+            <td>${tarefa.usuario_nome || 'Não atribuído'}</td>
+            <td>${tarefa.empresa_nome}</td>
+            <td>${tarefa.tarefa_nome}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>${tarefa.periodo_label}</td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      console.log('❌ Ocultando seção de tarefas anuais - sem dados');
+      // Ocultar seção se não há tarefas anuais
+      section.style.display = 'none';
+    }
+  })
+  .catch(error => {
+    console.error('Erro ao carregar tarefas anuais:', error);
+    const section = document.getElementById('tarefas-anuais-section');
+    if (section) {
+      section.style.display = 'none';
+    }
+  });
 };
 
 // ================================
@@ -890,10 +1092,6 @@ let currentPeriodoId = null;
 window.showConclusaoModal = function(periodoId, empresaNome, tarefaNome, periodo) {
   currentPeriodoId = periodoId;
   
-  // Debug para verificar os valores recebidos
-  console.log('showConclusaoModal chamado com:', {
-    periodoId, empresaNome, tarefaNome, periodo
-  });
   
   // Verificar se os elementos existem
   const modalEmpresa = document.getElementById('modalEmpresa');
@@ -908,7 +1106,7 @@ window.showConclusaoModal = function(periodoId, empresaNome, tarefaNome, periodo
   
   if (modalEmpresa) modalEmpresa.textContent = empresaNome || 'N/A';
   if (modalTarefa) modalTarefa.textContent = tarefaNome || 'N/A';
-  if (modalPeriodo) modalPeriodo.textContent = periodo || 'N/A';
+  if (modalPeriodo) modalPeriodo.textContent = formatPeriodoBrasileiro(periodo) || 'N/A';
   
   showModal('modalConfirmarConclusao');
 };
@@ -917,10 +1115,6 @@ window.showConclusaoModal = function(periodoId, empresaNome, tarefaNome, periodo
 window.showRetificationModal = function(periodoId, empresaNome, tarefaNome, periodo) {
   currentPeriodoId = periodoId;
   
-  // Debug para verificar os valores recebidos
-  console.log('showRetificationModal chamado com:', {
-    periodoId, empresaNome, tarefaNome, periodo
-  });
   
   // Verificar se os elementos existem
   const modalRetEmpresa = document.getElementById('modalRetEmpresa');
@@ -935,7 +1129,7 @@ window.showRetificationModal = function(periodoId, empresaNome, tarefaNome, peri
   
   if (modalRetEmpresa) modalRetEmpresa.textContent = empresaNome || 'N/A';
   if (modalRetTarefa) modalRetTarefa.textContent = tarefaNome || 'N/A';
-  if (modalRetPeriodo) modalRetPeriodo.textContent = periodo || 'N/A';
+  if (modalRetPeriodo) modalRetPeriodo.textContent = formatPeriodoBrasileiro(periodo) || 'N/A';
   
   showModal('modalConfirmarRetificacao');
 };
@@ -956,11 +1150,15 @@ window.closeModal = function(modalId) {
   if (!modal) return;
   
   modal.classList.remove('show');
+  modal.style.display = 'none';
+  modal.style.pointerEvents = 'none';
   document.body.style.overflow = 'auto';
   
-  setTimeout(() => {
-    modal.style.display = 'none';
-  }, 300);
+  // Remover backdrop se existir
+  const backdrop = document.querySelector('.modal-backdrop');
+  if (backdrop) {
+    backdrop.remove();
+  }
 };
 
 // Confirmar conclusão
@@ -1194,7 +1392,7 @@ function validateContaForm(event) {
   
   if (tipoContaValue === 'privada' && !idEmpresaValue) {
     event.preventDefault();
-    alert('Para contas privadas, o ID da Empresa é obrigatório.');
+    showWarningAlert('Para contas privadas, o ID da Empresa é obrigatório.', 'Atenção');
     idEmpresaInput.focus();
     return false;
   }
@@ -1603,6 +1801,9 @@ window.initPageFilters = function() {
       clearBtn.setAttribute('onclick', 'window.FilterSystem.clearAllFilters()');
     }
     
+    // Carregar tarefas anuais
+    window.loadTarefasAnuaisGerenciamento();
+    
     console.log('✅ Filtros do gerenciamento inicializados');
     
   } else if (path.includes('/tarefas')) {
@@ -1724,3 +1925,172 @@ window.animateCounters = animateCounters;
 window.updateCurrentDate = updateCurrentDate;
 window.toggleEditForm = toggleEditForm;
 window.toggleForm = toggleForm;
+
+// Carregar badge de checklists pendentes em todas as páginas
+if (typeof window.loadChecklistBadge === 'function') {
+  window.loadChecklistBadge();
+}
+
+// ================================
+// SISTEMA DE MODAIS PARA SUBSTITUIR ALERTS
+// ================================
+
+// Função para mostrar modal de alerta personalizado
+window.showAlertModal = function(message, type = 'error', title = null) {
+  const modal = document.getElementById('alertModal');
+  const header = document.getElementById('alertModalHeader');
+  const icon = document.getElementById('alertModalIcon');
+  const titleEl = document.getElementById('alertModalTitle');
+  const body = document.getElementById('alertModalBody');
+  const btn = document.getElementById('alertModalBtn');
+  
+  if (!modal) {
+    console.error('Modal de alerta não encontrado');
+    return;
+  }
+  
+  // Configurar tipo e ícone
+  const configs = {
+    error: {
+      icon: 'fas fa-exclamation-triangle',
+      title: title || 'Erro',
+      btnClass: 'alert-modal-btn-primary'
+    },
+    success: {
+      icon: 'fas fa-check-circle',
+      title: title || 'Sucesso',
+      btnClass: 'alert-modal-btn-success'
+    },
+    warning: {
+      icon: 'fas fa-exclamation-circle',
+      title: title || 'Atenção',
+      btnClass: 'alert-modal-btn-secondary'
+    },
+    info: {
+      icon: 'fas fa-info-circle',
+      title: title || 'Informação',
+      btnClass: 'alert-modal-btn-primary'
+    }
+  };
+  
+  const config = configs[type] || configs.error;
+  
+  // Aplicar configurações
+  header.className = `alert-modal-header ${type}`;
+  icon.className = `alert-modal-icon ${config.icon}`;
+  titleEl.textContent = config.title;
+  body.textContent = message;
+  btn.className = `alert-modal-btn ${config.btnClass}`;
+  
+  // Mostrar modal
+  modal.style.display = 'flex';
+  modal.classList.add('show');
+  modal.style.pointerEvents = 'auto';
+  
+  // Fechar com ESC
+  const handleEsc = (e) => {
+    if (e.key === 'Escape') {
+      closeAlertModal();
+      document.removeEventListener('keydown', handleEsc);
+    }
+  };
+  document.addEventListener('keydown', handleEsc);
+  
+  // Fechar ao clicar fora do modal
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeAlertModal();
+    }
+  });
+};
+
+// Função para fechar modal de alerta
+window.closeAlertModal = function() {
+  const modal = document.getElementById('alertModal');
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove('show');
+    modal.style.pointerEvents = 'none';
+  }
+};
+
+// Substituir função alert nativa
+window.originalAlert = window.alert;
+window.alert = function(message) {
+  console.log('🔄 Substituindo alert nativo por modal personalizado:', message);
+  showAlertModal(message, 'info', 'Alerta');
+};
+
+// Função para mostrar alertas de sucesso
+window.showSuccessAlert = function(message, title = 'Sucesso') {
+  showAlertModal(message, 'success', title);
+};
+
+// Função para mostrar alertas de erro
+window.showErrorAlert = function(message, title = 'Erro') {
+  showAlertModal(message, 'error', title);
+};
+
+// Função para mostrar alertas de aviso
+window.showWarningAlert = function(message, title = 'Atenção') {
+  showAlertModal(message, 'warning', title);
+};
+
+// Função para mostrar alertas informativos
+window.showInfoAlert = function(message, title = 'Informação') {
+  showAlertModal(message, 'info', title);
+};
+
+// Função para mostrar modal de confirmação
+window.showConfirmModal = function(title, message, onConfirm, onCancel = null) {
+  // Criar modal de confirmação se não existir
+  let modal = document.getElementById('confirmModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'confirmModal';
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="confirmModalTitle"></h5>
+            <button type="button" class="close" data-dismiss="modal">
+              <span>&times;</span>
+            </button>
+          </div>
+          <div class="modal-body" id="confirmModalBody"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirmModalBtn">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  
+  // Preencher conteúdo
+  document.getElementById('confirmModalTitle').textContent = title;
+  document.getElementById('confirmModalBody').innerHTML = message;
+  
+  // Configurar eventos
+  const confirmBtn = document.getElementById('confirmModalBtn');
+  const modalInstance = $(modal);
+  
+  // Remover eventos anteriores
+  confirmBtn.onclick = null;
+  modalInstance.off('hidden.bs.modal');
+  
+  // Adicionar novos eventos
+  confirmBtn.onclick = function() {
+    modalInstance.modal('hide');
+    if (onConfirm) onConfirm();
+  };
+  
+  modalInstance.on('hidden.bs.modal', function() {
+    if (onCancel) onCancel();
+  });
+  
+  // Mostrar modal
+  modalInstance.modal('show');
+};

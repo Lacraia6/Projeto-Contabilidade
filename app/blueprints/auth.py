@@ -14,6 +14,8 @@ def login_page():
 			return redirect(url_for('admin.admin_page'))
 		elif user_tipo == 'gerente':
 			return redirect(url_for('gerenciamento.return_page'))
+		elif user_tipo == 'supervisor':
+			return redirect(url_for('supervisor.index'))
 		else:  # tipo 'normal'
 			return redirect(url_for('dashboard.return_dashboard'))
 	return render_template('login.html')
@@ -38,6 +40,8 @@ def login_submit():
 		return redirect(url_for('admin.admin_page'))
 	elif user.tipo == 'gerente':
 		return redirect(url_for('gerenciamento.return_page'))
+	elif user.tipo == 'supervisor':
+		return redirect(url_for('supervisor.index'))
 	else:  # tipo 'normal'
 		return redirect(url_for('dashboard.return_dashboard'))
 

@@ -2097,6 +2097,286 @@ input[pattern]:focus {
    CLASSES DO DASHBOARD E GERENCIAMENTO
    ================================ */
 
+/* Seção de Tarefas Anuais */
+#tarefas-anuais-section {
+  margin-top: 2rem;
+  border-top: 2px solid var(--primary-color);
+  padding-top: 1.5rem;
+}
+
+#tarefas-anuais-section h3 {
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+#tarefas-anuais-section .info-text {
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 1rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: baseline;
+  border-radius: 0.25rem;
+}
+
+.badge-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+/* Cores específicas para tributações */
+.badge-simples-nacional {
+  background-color: #28a745;
+  color: white;
+}
+
+.badge-regime-normal {
+  background-color: #1e3a8a;
+  color: white;
+}
+
+/* Badge de notificação */
+.notification-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: #dc3545 !important;
+  color: white !important;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: bold;
+  min-width: 18px;
+  height: 16px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  z-index: 1000;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.nav-item {
+  position: relative;
+}
+
+.nav-item a {
+  position: relative;
+  display: block;
+  padding: 12px 20px;
+}
+
+/* Garantir que o badge seja visível quando necessário */
+#checklist-badge {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  background-color: #dc3545 !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  font-size: 10px !important;
+  font-weight: bold !important;
+  min-width: 18px !important;
+  height: 16px !important;
+  display: none !important; /* Inicialmente oculto */
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  z-index: 1000 !important;
+  border: 2px solid white !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+/* Badge visível quando tem conteúdo */
+#checklist-badge:not([style*="display: none"]) {
+  display: flex !important;
+}
+
+/* ================================
+   MODAIS CSS PARA SUBSTITUIR ALERTS
+   ================================ */
+
+/* Modal de alerta personalizado */
+.alert-modal {
+  display: none !important;
+  position: fixed;
+  z-index: 10000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.alert-modal.show {
+  display: flex !important;
+  pointer-events: auto;
+}
+
+.alert-modal.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.alert-modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 0;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease;
+  border: 1px solid #e0e0e0;
+}
+
+.alert-modal-header {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  padding: 20px 24px;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-modal-header.success {
+  background: linear-gradient(135deg, #28a745, #1e7e34);
+}
+
+.alert-modal-header.warning {
+  background: linear-gradient(135deg, #ffc107, #e0a800);
+}
+
+.alert-modal-header.info {
+  background: linear-gradient(135deg, #17a2b8, #138496);
+}
+
+.alert-modal-icon {
+  font-size: 24px;
+}
+
+.alert-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.alert-modal-body {
+  padding: 24px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #333;
+}
+
+.alert-modal-footer {
+  padding: 16px 24px 24px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.alert-modal-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 100px;
+}
+
+.alert-modal-btn-primary {
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: white;
+}
+
+.alert-modal-btn-primary:hover {
+  background: linear-gradient(135deg, #0056b3, #004085);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.alert-modal-btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.alert-modal-btn-secondary:hover {
+  background: #545b62;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.alert-modal-btn-success {
+  background: linear-gradient(135deg, #28a745, #1e7e34);
+  color: white;
+}
+
+.alert-modal-btn-success:hover {
+  background: linear-gradient(135deg, #1e7e34, #155724);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Animações */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: translateY(-30px) scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .alert-modal-content {
+    width: 95%;
+    margin: 20px;
+  }
+  
+  .alert-modal-header {
+    padding: 16px 20px;
+  }
+  
+  .alert-modal-body {
+    padding: 20px;
+  }
+  
+  .alert-modal-footer {
+    padding: 12px 20px 20px;
+    flex-direction: column;
+  }
+  
+  .alert-modal-btn {
+    width: 100%;
+  }
+}
+
 /* Dashboard Section */
 .dashboard-section {
   padding: 24px;
@@ -2693,4 +2973,449 @@ input[pattern]:focus {
   .form-actions .btn {
     flex: 1;
   }
+}
+
+/* ================================
+   TEMPLATE INPUTS FIX
+   ================================ */
+
+/* Corrigir cores dos inputs em templates - UNIFORMIZAR COM AZUL CLARO */
+.item-template input[type="text"],
+.item-template input[type="number"],
+.item-template textarea,
+.item-template select,
+.item-template .form-control {
+    background-color: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.item-template input[type="text"]:focus,
+.item-template input[type="number"]:focus,
+.item-template textarea:focus,
+.item-template select:focus,
+.item-template .form-control:focus {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 0 0 3px rgba(158, 182, 216, 0.25) !important;
+}
+
+.item-template input[type="text"]::placeholder,
+.item-template input[type="number"]::placeholder,
+.item-template textarea::placeholder,
+.item-template .form-control::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* ================================
+   MODAL CENTERING FIX
+   ================================ */
+
+/* Centralizar modais */
+  .modal {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.modal-dialog {
+    margin: 0 !important;
+    max-width: 90vw !important;
+    width: auto !important;
+}
+
+.modal-lg {
+    max-width: 800px !important;
+}
+
+/* Garantir que o modal apareça centralizado */
+.modal.show {
+    display: flex !important;
+}
+
+/* Ajustar z-index para garantir que apareça por cima */
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+.modal {
+    z-index: 1050 !important;
+}
+
+/* ================================
+   CLICK FIX - GARANTIR QUE LINKS SEJAM CLICÁVEIS
+   ================================ */
+
+/* Garantir que todos os links sejam clicáveis */
+a, button, .nav-item, .nav-item a {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* Garantir que o sidebar seja clicável */
+.sidebar {
+    pointer-events: auto !important;
+}
+
+.sidebar .nav-item {
+    pointer-events: auto !important;
+}
+
+.sidebar .nav-item a {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* Garantir que o main-content não bloqueie o sidebar */
+.main-content {
+    pointer-events: auto !important;
+}
+
+/* Remover qualquer overlay invisível que possa estar bloqueando */
+body::before,
+body::after {
+    display: none !important;
+}
+
+/* Garantir que elementos com z-index alto não bloqueiem cliques */
+[style*="z-index"] {
+    pointer-events: auto !important;
+}
+
+/* Forçar clicabilidade em todos os elementos de navegação */
+.nav-item a:hover {
+    background-color: var(--bg-hover) !important;
+    transform: translateX(4px) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Garantir que elementos específicos sejam clicáveis */
+a, button, .btn, .nav-item, .nav-item a, .sidebar a {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* Exceção para elementos que devem bloquear cliques */
+.modal-backdrop,
+.loading-overlay {
+    pointer-events: auto !important;
+}
+
+/* Garantir que o body não tenha problemas de clique */
+body {
+    pointer-events: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Garantir que o app-container seja clicável */
+.app-container {
+    pointer-events: auto !important;
+}
+
+/* ================================
+   EMERGENCY CLICK FIX
+   ================================ */
+
+/* Forçar clicabilidade em elementos críticos */
+.sidebar {
+    pointer-events: auto !important;
+    z-index: 1000 !important;
+}
+
+.sidebar * {
+    pointer-events: auto !important;
+}
+
+.nav-item {
+    pointer-events: auto !important;
+    z-index: 1001 !important;
+}
+
+.nav-item a {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 1002 !important;
+    position: relative !important;
+}
+
+/* Remover qualquer overlay que possa estar bloqueando */
+body::before,
+body::after,
+.app-container::before,
+.app-container::after {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+/* Garantir que não há elementos invisíveis */
+*[style*="display: none"],
+*[style*="visibility: hidden"] {
+    pointer-events: none !important;
+}
+
+/* Forçar que elementos visíveis sejam clicáveis */
+*:not([style*="display: none"]):not([style*="visibility: hidden"]) {
+    pointer-events: auto !important;
+}
+
+/* ================================
+   ULTIMATE CLICK FIX
+   ================================ */
+
+/* Forçar clicabilidade em TODOS os elementos clicáveis */
+a, button, input[type="button"], input[type="submit"], .btn, .nav-item, .nav-item a, .sidebar a, .sidebar button {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 9999 !important;
+    position: relative !important;
+}
+
+/* Garantir que o sidebar seja sempre clicável */
+.sidebar {
+    pointer-events: auto !important;
+    z-index: 10000 !important;
+    position: relative !important;
+}
+
+/* Garantir que os itens de navegação sejam sempre clicáveis */
+.nav-item {
+    pointer-events: auto !important;
+    z-index: 10001 !important;
+    position: relative !important;
+}
+
+.nav-item a {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 10002 !important;
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Remover qualquer bloqueio de cliques */
+body, html, .app-container, .main-content {
+    pointer-events: auto !important;
+}
+
+/* Garantir que não há elementos sobrepondo */
+* {
+    pointer-events: auto !important;
+}
+
+/* Exceção apenas para elementos que realmente devem bloquear */
+.modal-backdrop {
+    pointer-events: auto !important;
+}
+
+/* ================================
+   MODAL INVISIBLE FIX
+   ================================ */
+
+/* Garantir que modais não mostrados sejam completamente invisíveis */
+.modal:not(.show) {
+    display: none !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+}
+
+.alert-modal:not(.show) {
+    display: none !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+}
+
+/* Garantir que modais mostrados sejam visíveis */
+.modal.show {
+    display: flex !important;
+    pointer-events: auto !important;
+    z-index: 1050 !important;
+}
+
+.alert-modal.show {
+    display: flex !important;
+    pointer-events: auto !important;
+    z-index: 10000 !important;
+}
+
+/* Remover qualquer overlay invisível */
+body::before,
+body::after,
+.app-container::before,
+.app-container::after,
+.sidebar::before,
+.sidebar::after {
+    display: none !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+}
+
+/* ================================
+   SUPERVISOR EMPRESAS MODAL FIX
+   ================================ */
+
+/* Garantir que modais do supervisor sejam visíveis */
+#modalCriarEmpresa,
+#modalAlterarTributacao {
+    display: none !important;
+    position: fixed !important;
+    z-index: 10000 !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#modalCriarEmpresa.show,
+#modalAlterarTributacao.show {
+    display: flex !important;
+    pointer-events: auto !important;
+}
+
+#modalCriarEmpresa .modal-content,
+#modalAlterarTributacao .modal-content {
+    background: white !important;
+    padding: 20px !important;
+    border-radius: 8px !important;
+    max-width: 500px !important;
+    width: 90% !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    position: relative !important;
+    z-index: 10001 !important;
+}
+
+/* ================================
+   SUPERVISOR PANEL BUTTONS FIX
+   ================================ */
+
+/* Garantir que os botões do painel do supervisor sejam visíveis */
+.header-actions {
+    display: flex !important;
+    gap: 10px !important;
+    align-items: center !important;
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+    position: relative !important;
+}
+
+.header-actions .btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 10px 20px !important;
+    text-decoration: none !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 10000 !important;
+    position: relative !important;
+    border: none !important;
+}
+
+.header-actions .btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.header-actions .btn-primary {
+    background-color: #007bff !important;
+    color: white !important;
+}
+
+.header-actions .btn-success {
+    background-color: #28a745 !important;
+    color: white !important;
+}
+
+.header-actions .btn-info {
+    background-color: #17a2b8 !important;
+    color: white !important;
+}
+
+/* Garantir que o dashboard-header seja visível */
+.dashboard-header {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+    pointer-events: auto !important;
+    z-index: 9998 !important;
+    position: relative !important;
+}
+
+/* ================================
+   CHECKLIST FORM UNIFORM COLORS
+   ================================ */
+
+/* Garantir que todos os campos de formulário tenham a mesma cor de fundo */
+#supervisor-criar-checklist input[type="text"],
+#supervisor-criar-checklist input[type="number"],
+#supervisor-criar-checklist textarea,
+#supervisor-criar-checklist select,
+#supervisor-criar-checklist .form-control {
+    background-color: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+#supervisor-criar-checklist input[type="text"]:focus,
+#supervisor-criar-checklist input[type="number"]:focus,
+#supervisor-criar-checklist textarea:focus,
+#supervisor-criar-checklist select:focus,
+#supervisor-criar-checklist .form-control:focus {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 0 0 3px rgba(158, 182, 216, 0.25) !important;
+}
+
+#supervisor-criar-checklist input[type="text"]::placeholder,
+#supervisor-criar-checklist input[type="number"]::placeholder,
+#supervisor-criar-checklist textarea::placeholder,
+#supervisor-criar-checklist .form-control::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* Específico para campos de descrição */
+#supervisor-criar-checklist textarea[name*="descricao"],
+#supervisor-criar-checklist textarea[name*="descricao"]:focus {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+#supervisor-criar-checklist textarea[name*="descricao"]:focus {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(158, 182, 216, 0.25) !important;
+}
+
+/* Específico para campos da tabela de itens */
+#supervisor-criar-checklist table input[type="text"],
+#supervisor-criar-checklist table textarea,
+#supervisor-criar-checklist table select {
+    background-color: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+#supervisor-criar-checklist table input[type="text"]:focus,
+#supervisor-criar-checklist table textarea:focus,
+#supervisor-criar-checklist table select:focus {
+    background-color: var(--bg-secondary) !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 0 0 3px rgba(158, 182, 216, 0.25) !important;
+}
+
+#supervisor-criar-checklist table input[type="text"]::placeholder,
+#supervisor-criar-checklist table textarea::placeholder {
+    color: var(--text-muted) !important;
 }

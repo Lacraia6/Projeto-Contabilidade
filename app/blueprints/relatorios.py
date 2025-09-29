@@ -15,6 +15,65 @@ from reportlab.pdfgen import canvas
 bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
 
 
+@bp.get('/anuais')
+def relatorio_anuais():
+	"""Página de relatório de tarefas anuais"""
+	# Buscar dados do usuário logado
+	user_id = session.get('user_id')
+	usuario_logado = Usuario.query.get(user_id) if user_id else None
+	
+	# Filtrar empresas baseado no setor do gerente
+	if usuario_logado and usuario_logado.tipo == 'gerente' and usuario_logado.setor_id:
+		# Buscar empresas que têm tarefas anuais do setor do gerente
+		empresas_query = db.session.query(Empresa).join(
+			RelacionamentoTarefa, RelacionamentoTarefa.empresa_id == Empresa.id
+		).join(
+			Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
+		).filter(
+			Tarefa.tipo == 'Anual',
+			Tarefa.setor_id == usuario_logado.setor_id
+		).distinct()
+	else:
+		# Admin vê todas as empresas
+		empresas_query = Empresa.query.filter_by(ativo=True)
+	
+	empresas_opts = [(e.id, e.nome) for e in empresas_query.order_by(Empresa.nome).all()]
+	
+	# Buscar funcionários baseado no setor do gerente
+	if usuario_logado and usuario_logado.tipo == 'gerente' and usuario_logado.setor_id:
+		funcionarios_query = db.session.query(Usuario).join(
+			RelacionamentoTarefa, RelacionamentoTarefa.responsavel_id == Usuario.id
+		).join(
+			Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
+		).filter(
+			Tarefa.tipo == 'Anual',
+			Tarefa.setor_id == usuario_logado.setor_id,
+			Usuario.ativo == True
+		).distinct()
+	else:
+		# Admin vê todos os funcionários
+		funcionarios_query = Usuario.query.filter_by(ativo=True, tipo='normal')
+	
+	funcionarios_opts = [(u.id, u.nome) for u in funcionarios_query.order_by(Usuario.nome).all()]
+	
+	# Buscar tarefas anuais baseado no setor do gerente
+	if usuario_logado and usuario_logado.tipo == 'gerente' and usuario_logado.setor_id:
+		tarefas_query = Tarefa.query.filter(
+			Tarefa.tipo == 'Anual',
+			Tarefa.setor_id == usuario_logado.setor_id
+		)
+	else:
+		# Admin vê todas as tarefas anuais
+		tarefas_query = Tarefa.query.filter_by(tipo='Anual')
+	
+	tarefas_opts = [(t.id, t.nome) for t in tarefas_query.order_by(Tarefa.nome).all()]
+	
+	return render_template('relatorios_anuais.html', 
+		empresas_opts=empresas_opts,
+		funcionarios_opts=funcionarios_opts,
+		tarefas_opts=tarefas_opts)
+
+
 @bp.get('')
 @bp.get('/')
 def return_page():
@@ -43,6 +102,89 @@ def return_page():
 	
 	empresas_opts = [{"id": e.id, "nome": e.nome} for e in empresas]
 	return render_template('relatorios.html', aba='relatorios', empresas=empresas_opts)
+
+
+@bp.get('/api/dados-anuais')
+def api_dados_relatorio_anuais():
+	"""API para buscar dados do relatório de tarefas anuais"""
+	try:
+		empresa_id = request.args.get('empresa_id', type=int)
+		funcionario_id = request.args.get('funcionario_id', type=int)
+		tarefa_id = request.args.get('tarefa_id', type=int)
+		ano = request.args.get('ano', '2025')
+		
+		# Buscar dados do usuário logado
+		user_id = session.get('user_id')
+		usuario_logado = Usuario.query.get(user_id) if user_id else None
+		
+		# Query base para tarefas anuais
+		query = db.session.query(Periodo, RelacionamentoTarefa, Tarefa, Empresa, Usuario).join(
+			RelacionamentoTarefa, Periodo.relacionamento_tarefa_id == RelacionamentoTarefa.id
+		).join(
+			Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
+		).join(
+			Empresa, RelacionamentoTarefa.empresa_id == Empresa.id
+		).join(
+			Usuario, RelacionamentoTarefa.responsavel_id == Usuario.id
+		).filter(
+			Tarefa.tipo == 'Anual'
+		)
+		
+		# Filtrar por setor se for gerente
+		if usuario_logado and usuario_logado.tipo == 'gerente' and usuario_logado.setor_id:
+			query = query.filter(Tarefa.setor_id == usuario_logado.setor_id)
+		
+		# Aplicar filtros
+		if empresa_id:
+			query = query.filter(RelacionamentoTarefa.empresa_id == empresa_id)
+		
+		if funcionario_id:
+			query = query.filter(RelacionamentoTarefa.responsavel_id == funcionario_id)
+		
+		if tarefa_id:
+			query = query.filter(RelacionamentoTarefa.tarefa_id == tarefa_id)
+		
+		if ano:
+			query = query.filter(Periodo.periodo_label == ano)
+		
+		# Executar query
+		results = query.all()
+		
+		# Processar resultados
+		dados = []
+		for p, rel, tar, emp, usu in results:
+			# Determinar data de conclusão/retificação
+			data_final = None
+			label_data = 'Data de Conclusão'
+			
+			if p.data_retificacao:
+				data_final = p.data_retificacao.strftime('%d/%m/%Y')
+				label_data = 'Data de Retificação'
+			elif p.data_conclusao:
+				data_final = p.data_conclusao.strftime('%d/%m/%Y')
+			
+			dados.append({
+				'empresa': emp.nome,
+				'funcionario': usu.nome,
+				'tarefa': tar.nome,
+				'periodo': p.periodo_label,
+				'status': p.status or 'pendente',
+				'data_final': data_final,
+				'label_data': label_data,
+				'contador_retificacoes': p.contador_retificacoes or 0
+			})
+		
+		return jsonify({
+			'success': True,
+			'dados': dados,
+			'total': len(dados)
+		})
+		
+	except Exception as e:
+		return jsonify({
+			'success': False,
+			'message': f'Erro ao buscar dados: {str(e)}'
+		}), 500
 
 
 @bp.get('/api/dados')

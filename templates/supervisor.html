@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Painel do Supervisor{% endblock %}
+
+{% block content %}
+<section id="supervisor" class="tab-content active dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-user-shield"></i> Painel do Supervisor</h1>
+    <p>Gerenciamento de empresas, tributação e checklists</p>
+  <div class="header-actions">
+    <a href="/supervisor/empresas" class="btn btn-primary" style="pointer-events: auto !important; z-index: 9999 !important;">
+      <i class="fas fa-building"></i> Empresas
+    </a>
+    <a href="/supervisor/checklists" class="btn btn-success" style="pointer-events: auto !important; z-index: 9999 !important;">
+      <i class="fas fa-tasks"></i> Checklists
+    </a>
+    <a href="/supervisor/templates" class="btn btn-info" style="pointer-events: auto !important; z-index: 9999 !important;">
+      <i class="fas fa-clipboard-list"></i> Templates
+    </a>
+  </div>
+  </div>
+
+  <!-- Métricas -->
+  <div class="dashboard-metrics">
+    <div class="metric-card">
+      <div class="metric-icon">
+        <i class="fas fa-building"></i>
+      </div>
+      <div class="metric-content">
+        <h3>{{ total_empresas }}</h3>
+        <p>Empresas Ativas</p>
+      </div>
+    </div>
+    
+    <div class="metric-card">
+      <div class="metric-icon">
+        <i class="fas fa-tasks"></i>
+      </div>
+      <div class="metric-content">
+        <h3>{{ total_checklists }}</h3>
+        <p>Checklists Criados</p>
+      </div>
+    </div>
+    
+    <div class="metric-card">
+      <div class="metric-icon">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="metric-content">
+        <h3>{{ total_usuarios }}</h3>
+        <p>Usuários Ativos</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empresas Recentes -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-building"></i> Empresas Recentes</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Nome</th>
+            <th>Tributação</th>
+            <th>Criada em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for empresa in empresas_recentes %}
+          <tr>
+            <td>{{ empresa.codigo }}</td>
+            <td>{{ empresa.nome }}</td>
+            <td>
+              {% if empresa.tributacao %}
+                {% if empresa.tributacao.nome == 'Simples Nacional' %}
+                  <span class="badge badge-simples-nacional">{{ empresa.tributacao.nome }}</span>
+                {% elif empresa.tributacao.nome == 'Regime Normal' %}
+                  <span class="badge badge-regime-normal">{{ empresa.tributacao.nome }}</span>
+                {% else %}
+                  <span class="badge badge-info">{{ empresa.tributacao.nome }}</span>
+                {% endif %}
+              {% else %}
+                <span class="badge badge-secondary">Sem tributação</span>
+              {% endif %}
+            </td>
+            <td>{{ empresa.criado_em.strftime('%d/%m/%Y') if empresa.criado_em else 'N/A' }}</td>
+            <td>
+              <button class="btn btn-sm btn-warning" onclick="alterarTributacao({{ empresa.id }}, '{{ empresa.tributacao.nome if empresa.tributacao else '' }}')">
+                <i class="fas fa-edit"></i> Tributação
+              </button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center">Nenhuma empresa encontrada</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Checklists Recentes -->
+  <div class="dashboard-table">
+    <h3><i class="fas fa-tasks"></i> Checklists Recentes</h3>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Empresa</th>
+            <th>Itens</th>
+            <th>Criado em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for checklist in checklists_recentes %}
+          <tr>
+            <td>{{ checklist.nome }}</td>
+            <td>{{ checklist.empresa.nome }}</td>
+            <td>{{ checklist.itens|length }} itens</td>
+            <td>{{ checklist.criado_em.strftime('%d/%m/%Y') if checklist.criado_em else 'N/A' }}</td>
+            <td>
+              <a href="/supervisor/checklists/{{ checklist.id }}" class="btn btn-sm btn-info">
+                <i class="fas fa-eye"></i> Visualizar
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center">Nenhum checklist encontrado</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script>
+// Debug para painel do supervisor
+console.log('🔧 Carregando painel do supervisor...');
+
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('📋 Verificando botões do painel do supervisor...');
+  
+  // Verificar se os botões existem
+  const btnEmpresas = document.querySelector('a[href="/supervisor/empresas"]');
+  const btnChecklists = document.querySelector('a[href="/supervisor/checklists"]');
+  const btnTemplates = document.querySelector('a[href="/supervisor/templates"]');
+  
+  console.log('🏢 Botão Empresas:', btnEmpresas ? '✅ Encontrado' : '❌ Não encontrado');
+  console.log('📋 Botão Checklists:', btnChecklists ? '✅ Encontrado' : '❌ Não encontrado');
+  console.log('📝 Botão Templates:', btnTemplates ? '✅ Encontrado' : '❌ Não encontrado');
+  
+  if (btnEmpresas) {
+    console.log('   - Texto:', btnEmpresas.textContent.trim());
+    console.log('   - Href:', btnEmpresas.href);
+    console.log('   - Classes:', btnEmpresas.className);
+    console.log('   - Display:', getComputedStyle(btnEmpresas).display);
+    console.log('   - Visibility:', getComputedStyle(btnEmpresas).visibility);
+    console.log('   - Z-index:', getComputedStyle(btnEmpresas).zIndex);
+    console.log('   - Pointer-events:', getComputedStyle(btnEmpresas).pointerEvents);
+  }
+  
+  // Adicionar listener de debug para o botão de empresas
+  if (btnEmpresas) {
+    btnEmpresas.addEventListener('click', function(e) {
+      console.log('🖱️ Botão Empresas clicado!');
+      console.log('   - Evento:', e);
+      console.log('   - Target:', e.target);
+    });
+  }
+  
+  // Verificar se há elementos sobrepondo
+  const headerActions = document.querySelector('.header-actions');
+  if (headerActions) {
+    console.log('📦 Container header-actions:', headerActions ? '✅ Encontrado' : '❌ Não encontrado');
+    console.log('   - Display:', getComputedStyle(headerActions).display);
+    console.log('   - Position:', getComputedStyle(headerActions).position);
+    console.log('   - Z-index:', getComputedStyle(headerActions).zIndex);
+  }
+  
+  console.log('✅ Verificação do painel do supervisor concluída');
+});
+</script>
+
+<!-- Modal para alterar tributação -->
+<div id="modalAlterarTributacao" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-edit"></i> Alterar Tributação</h3>
+      <span class="close" onclick="closeModal('modalAlterarTributacao')">&times;</span>
+    </div>
+    <div class="modal-body">
+      <form id="formAlterarTributacao">
+        <input type="hidden" id="empresaIdTributacao" name="empresa_id">
+        
+        <div class="form-group">
+          <label for="tributacaoAtual">Tributação Atual:</label>
+          <input type="text" id="tributacaoAtual" class="form-control" readonly>
+        </div>
+        
+        <div class="form-group">
+          <label for="novaTributacao">Nova Tributação:</label>
+          <select id="novaTributacao" name="tributacao_id" class="form-control">
+            <option value="">Selecione uma tributação</option>
+            <option value="1">Simples Nacional</option>
+            <option value="2">Regime Normal</option>
+          </select>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalAlterarTributacao')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Alterar Tributação</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// Função para alterar tributação
+function alterarTributacao(empresaId, tributacaoAtual) {
+  document.getElementById('empresaIdTributacao').value = empresaId;
+  document.getElementById('tributacaoAtual').value = tributacaoAtual || 'Sem tributação';
+  document.getElementById('novaTributacao').value = '';
+  showModal('modalAlterarTributacao');
+}
+
+// Formulário de alterar tributação
+document.getElementById('formAlterarTributacao').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const empresaId = document.getElementById('empresaIdTributacao').value;
+  const tributacaoId = document.getElementById('novaTributacao').value;
+  
+  fetch(`/supervisor/empresas/${empresaId}/tributacao`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({
+      tributacao_id: tributacaoId || null
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showFeedback('Tributação alterada com sucesso!', 'success');
+      closeModal('modalAlterarTributacao');
+      // Recarregar página após 1 segundo
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      showFeedback(data.message || 'Erro ao alterar tributação', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    showFeedback('Erro ao alterar tributação', 'error');
+  });
+});
+</script>
+{% endblock %}

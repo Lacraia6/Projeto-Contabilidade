@@ -3,8 +3,8 @@ sys.dont_write_bytecode = True
 import sqlite3
 from pathlib import Path
 
-CAMINHO_DB = Path(__file__).parent.parent / "data_base.db"
-DATA_BASE_COMMANDS = Path(__file__).parent.parent / "comandosSQL.sql"
+CAMINHO_DB = Path(__file__).parent / "data_base.db"
+DATA_BASE_COMMANDS = Path(__file__).parent / "comandosSQL.sql"
 
 
 def execute_command(command, value=None):
@@ -42,4 +42,8 @@ def create_database():
         cursor.close()
         conn.close() 
         print("Banco de dados criado...")
-        return
+    else:
+        print("Banco de dados já existe...")
+
+if __name__ == "__main__":
+    create_database()

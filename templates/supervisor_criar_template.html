@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}Criar Template - Painel do Supervisor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-header">
+                <h1><i class="fas fa-plus"></i> Criar Template de Checklist</h1>
+                <p>Crie um template que pode ser reutilizado para diferentes empresas</p>
+                <div class="header-actions">
+                    <a href="{{ url_for('supervisor.templates') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-edit"></i> Informações do Template</h3>
+                </div>
+                <div class="card-body">
+                    <form id="criarTemplateForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="nome">Nome do Template *</label>
+                                    <input type="text" class="form-control" id="nome" name="nome" required
+                                           placeholder="Ex: Checklist de Abertura de Empresa">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="categoria">Categoria</label>
+                                    <select class="form-control" id="categoria" name="categoria">
+                                        <option value="">Selecione uma categoria...</option>
+                                        <option value="Abertura">Abertura</option>
+                                        <option value="Mensal">Mensal</option>
+                                        <option value="Anual">Anual</option>
+                                        <option value="Compliance">Compliance</option>
+                                        <option value="Fiscal">Fiscal</option>
+                                        <option value="Contábil">Contábil</option>
+                                        <option value="Trabalhista">Trabalhista</option>
+                                        <option value="Outros">Outros</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="descricao">Descrição</label>
+                            <textarea class="form-control" id="descricao" name="descricao" rows="3"
+                                      placeholder="Descreva o propósito deste template..."></textarea>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-list"></i> Itens do Template</h3>
+                    <div class="header-actions">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="adicionarItem()">
+                            <i class="fas fa-plus"></i> Adicionar Item
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="itensContainer">
+                        <div class="text-center py-3">
+                            <p class="text-muted">Nenhum item adicionado ainda. Clique em "Adicionar Item" para começar.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <button type="button" class="btn btn-success btn-lg" onclick="salvarTemplate()">
+                        <i class="fas fa-save"></i> Salvar Template
+                    </button>
+                    <a href="{{ url_for('supervisor.templates') }}" class="btn btn-secondary btn-lg ml-2">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let itemCounter = 0;
+
+function adicionarItem() {
+    itemCounter++;
+    
+    const container = document.getElementById('itensContainer');
+    
+    // Remover mensagem de "nenhum item" se for o primeiro
+    if (itemCounter === 1) {
+        container.innerHTML = '';
+    }
+    
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'item-template mb-3 p-3 border rounded';
+    itemDiv.id = `item_${itemCounter}`;
+    
+    itemDiv.innerHTML = `
+        <div class="row">
+            <div class="col-md-1">
+                <div class="form-group">
+                    <label>Ordem</label>
+                    <input type="number" class="form-control ordem-input" value="${itemCounter}" min="1">
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="form-group">
+                    <label>Título do Item *</label>
+                    <input type="text" class="form-control titulo-input" required
+                           placeholder="Ex: CNPJ Ativo">
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea class="form-control descricao-input" rows="2"
+                              placeholder="Descrição detalhada do item..."></textarea>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <div class="form-group">
+                    <label>Obrigatório</label>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input obrigatorio-input" checked>
+                        <label class="form-check-label">Sim</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 text-right">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerItem(${itemCounter})">
+                    <i class="fas fa-trash"></i> Remover
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(itemDiv);
+}
+
+function removerItem(itemId) {
+    const itemDiv = document.getElementById(`item_${itemId}`);
+    if (itemDiv) {
+        itemDiv.remove();
+        
+        // Reordenar itens restantes
+        reordenarItens();
+    }
+}
+
+function reordenarItens() {
+    const items = document.querySelectorAll('.item-template');
+    items.forEach((item, index) => {
+        const ordemInput = item.querySelector('.ordem-input');
+        if (ordemInput) {
+            ordemInput.value = index + 1;
+        }
+    });
+}
+
+function salvarTemplate() {
+    // Validar formulário principal
+    const nome = document.getElementById('nome').value.trim();
+    if (!nome) {
+        showErrorAlert('Nome do template é obrigatório');
+        return;
+    }
+    
+    // Coletar dados do formulário
+    const formData = new FormData();
+    formData.append('nome', nome);
+    formData.append('descricao', document.getElementById('descricao').value.trim());
+    formData.append('categoria', document.getElementById('categoria').value);
+    
+    // Coletar itens
+    const itens = [];
+    const itemElements = document.querySelectorAll('.item-template');
+    
+    itemElements.forEach(item => {
+        const titulo = item.querySelector('.titulo-input').value.trim();
+        if (titulo) {
+            itens.push({
+                titulo: titulo,
+                descricao: item.querySelector('.descricao-input').value.trim(),
+                ordem: parseInt(item.querySelector('.ordem-input').value) || 1,
+                obrigatorio: item.querySelector('.obrigatorio-input').checked
+            });
+        }
+    });
+    
+    if (itens.length === 0) {
+        showWarningAlert('Adicione pelo menos um item ao template');
+        return;
+    }
+    
+    formData.append('itens', JSON.stringify(itens));
+    
+    // Enviar requisição
+    fetch('/supervisor/templates/criar', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccessAlert(data.message);
+            setTimeout(() => {
+                window.location.href = '/supervisor/templates';
+            }, 1500);
+        } else {
+            showErrorAlert('Erro ao criar template: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showErrorAlert('Erro ao criar template');
+    });
+}
+
+// Adicionar primeiro item automaticamente
+document.addEventListener('DOMContentLoaded', function() {
+    adicionarItem();
+});
+</script>
+
+<style>
+.item-template {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6 !important;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    padding: 15px;
+}
+
+.item-template:hover {
+    background-color: #e9ecef;
+}
+
+.ordem-input {
+    text-align: center;
+}
+
+.form-check-label {
+    font-size: 0.9em;
+}
+
+/* Corrigir cores dos inputs */
+.item-template .form-control {
+    background-color: #ffffff !important;
+    border: 1px solid #ced4da !important;
+    color: #495057 !important;
+}
+
+.item-template .form-control:focus {
+    background-color: #ffffff !important;
+    border-color: #80bdff !important;
+    color: #495057 !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+.item-template .form-control::placeholder {
+    color: #6c757d !important;
+}
+
+/* Forçar cores em todos os inputs dentro do item-template */
+.item-template input[type="text"],
+.item-template input[type="number"],
+.item-template textarea,
+.item-template select {
+    background-color: #ffffff !important;
+    border: 1px solid #ced4da !important;
+    color: #495057 !important;
+}
+
+.item-template input[type="text"]:focus,
+.item-template input[type="number"]:focus,
+.item-template textarea:focus,
+.item-template select:focus {
+    background-color: #ffffff !important;
+    border-color: #80bdff !important;
+    color: #495057 !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+.item-template input[type="text"]::placeholder,
+.item-template input[type="number"]::placeholder,
+.item-template textarea::placeholder {
+    color: #6c757d !important;
+}
+
+/* Corrigir cores dos botões */
+.item-template .btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+    background-color: transparent;
+}
+
+.item-template .btn-outline-danger:hover {
+    color: #fff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+</style>
+{% endblock %}

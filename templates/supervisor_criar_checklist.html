@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+
+{% block title %}Criar Checklist - Supervisor{% endblock %}
+
+{% block content %}
+<section id="supervisor-criar-checklist" class="tab-content active dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-tasks"></i> Criar Checklist</h1>
+    <p>Criar um novo checklist para uma empresa</p>
+    <div class="header-actions">
+      <a href="/supervisor/checklists" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Voltar
+      </a>
+    </div>
+  </div>
+
+  <form id="formCriarChecklist">
+    <!-- Seleção de Template -->
+    <div class="dashboard-filters">
+      <div class="card-header">
+        <h3><i class="fas fa-clipboard-list"></i> Selecionar Template (Opcional)</h3>
+        <p class="text-muted">Escolha um template para preencher automaticamente os itens do checklist</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="templateSelect">Template</label>
+        <select class="form-control" id="templateSelect" onchange="carregarTemplate()">
+          <option value="">Criar checklist do zero</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Informações Básicas -->
+    <div class="dashboard-filters">
+      <div class="card-header">
+        <h3><i class="fas fa-info-circle"></i> Informações Básicas</h3>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="empresaChecklist">Empresa *</label>
+          <div class="dropdown-search-container">
+            <input type="text" id="empresaChecklist" name="empresa_search" class="form-control dropdown-search-input" 
+                   placeholder="Digite o nome da empresa..." autocomplete="off" required>
+            <input type="hidden" id="empresaChecklistId" name="empresa_id">
+            <div class="dropdown-search-results" id="empresaChecklistResults"></div>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="nomeChecklist">Nome do Checklist *</label>
+          <input type="text" id="nomeChecklist" name="nome" class="form-control" required placeholder="Ex: Checklist de Abertura">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="descricaoChecklist">Descrição</label>
+        <textarea id="descricaoChecklist" name="descricao" class="form-control" rows="3" placeholder="Descrição do checklist..."></textarea>
+      </div>
+    </div>
+
+
+    <!-- Itens do Checklist -->
+    <div class="dashboard-table">
+      <div class="card-header">
+        <h3><i class="fas fa-list"></i> Itens do Checklist</h3>
+        <button type="button" class="btn btn-primary" onclick="adicionarItem()">
+          <i class="fas fa-plus"></i> Adicionar Item Manual
+        </button>
+      </div>
+      
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th width="5%">#</th>
+              <th width="25%">Título *</th>
+              <th width="30%">Descrição</th>
+              <th width="20%">Responsável *</th>
+              <th width="10%">Obrigatório</th>
+              <th width="10%">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="itensTableBody">
+            <!-- Itens serão adicionados dinamicamente -->
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="window.history.back()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> Criar Checklist
+        </button>
+      </div>
+    </div>
+  </form>
+</section>
+
+<script>
+let itemCounter = 0;
+
+// Adicionar item inicial se não houver nenhum
+document.addEventListener('DOMContentLoaded', function() {
+  adicionarItem();
+});
+
+function adicionarItem() {
+  itemCounter++;
+  
+  const tbody = document.getElementById('itensTableBody');
+  const row = document.createElement('tr');
+  row.id = `item-${itemCounter}`;
+  
+  row.innerHTML = `
+    <td>${itemCounter}</td>
+    <td>
+      <input type="text" name="itens[${itemCounter}][titulo]" class="form-control" required placeholder="Título do item">
+    </td>
+    <td>
+      <textarea name="itens[${itemCounter}][descricao]" class="form-control" rows="2" placeholder="Descrição do item"></textarea>
+    </td>
+    <td>
+      <select name="itens[${itemCounter}][responsavel_id]" class="form-control" required>
+        <option value="">Selecione um responsável</option>
+        {% for usuario in usuarios %}
+        <option value="{{ usuario.id }}">{{ usuario.nome }}</option>
+        {% endfor %}
+      </select>
+    </td>
+    <td>
+      <input type="checkbox" name="itens[${itemCounter}][obrigatorio]" checked>
+    </td>
+    <td>
+      <button type="button" class="btn btn-sm btn-danger" onclick="removerItem(${itemCounter})">
+        <i class="fas fa-trash"></i>
+      </button>
+    </td>
+  `;
+  
+  tbody.appendChild(row);
+}
+
+function removerItem(itemId) {
+  const row = document.getElementById(`item-${itemId}`);
+  if (row) {
+    row.remove();
+    reordenarItens();
+  }
+}
+
+function reordenarItens() {
+  const rows = document.querySelectorAll('#itensTableBody tr');
+  rows.forEach((row, index) => {
+    const counter = index + 1;
+    row.id = `item-${counter}`;
+    row.cells[0].textContent = counter;
+    
+    // Atualizar os names dos inputs
+    const inputs = row.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+      const name = input.getAttribute('name');
+      if (name) {
+        const newName = name.replace(/\[\d+\]/, `[${counter}]`);
+        input.setAttribute('name', newName);
+      }
+    });
+    
+    // Atualizar o onclick do botão
+    const button = row.querySelector('button');
+    if (button) {
+      button.setAttribute('onclick', `removerItem(${counter})`);
+    }
+  });
+  
+  itemCounter = rows.length;
+}
+
+// Formulário de criar checklist
+document.getElementById('formCriarChecklist').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  // Validar se há pelo menos um item
+  const itens = document.querySelectorAll('#itensTableBody tr');
+  if (itens.length === 0) {
+    showFeedback('Adicione pelo menos um item ao checklist', 'error');
+    return;
+  }
+  
+  // Coletar dados do formulário
+  const formData = new FormData(this);
+  const data = {
+    empresa_id: formData.get('empresa_id'),
+    nome: formData.get('nome'),
+    descricao: formData.get('descricao'),
+    itens: []
+  };
+  
+  // Coletar itens
+  for (let i = 1; i <= itemCounter; i++) {
+    const row = document.getElementById(`item-${i}`);
+    if (row) {
+      const titulo = formData.get(`itens[${i}][titulo]`);
+      const descricao = formData.get(`itens[${i}][descricao]`);
+      const responsavel_id = formData.get(`itens[${i}][responsavel_id]`);
+      const obrigatorio = formData.get(`itens[${i}][obrigatorio]`) === 'on';
+      
+      if (titulo && responsavel_id) {
+        data.itens.push({
+          titulo: titulo,
+          descricao: descricao || '',
+          responsavel_id: parseInt(responsavel_id),
+          obrigatorio: obrigatorio
+        });
+      }
+    }
+  }
+  
+  // Validar se há itens válidos
+  if (data.itens.length === 0) {
+    showFeedback('Adicione pelo menos um item válido ao checklist', 'error');
+    return;
+  }
+  
+  // Enviar dados
+  fetch('/supervisor/checklists/criar', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify(data)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showFeedback('Checklist criado com sucesso!', 'success');
+      setTimeout(() => {
+        window.location.href = '/supervisor/checklists';
+      }, 1500);
+    } else {
+      showFeedback(data.message || 'Erro ao criar checklist', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Erro:', error);
+    showFeedback('Erro ao criar checklist', 'error');
+  });
+});
+
+// ================================
+// BUSCA DE EMPRESAS
+// ================================
+
+// Inicializar busca de empresas
+document.addEventListener('DOMContentLoaded', function() {
+  const empresaInput = document.getElementById('empresaChecklist');
+  const empresaResults = document.getElementById('empresaChecklistResults');
+  const empresaIdInput = document.getElementById('empresaChecklistId');
+  
+  let searchTimeout;
+  
+  empresaInput.addEventListener('input', function() {
+    const query = this.value.trim();
+    
+    clearTimeout(searchTimeout);
+    
+    if (query.length < 2) {
+      empresaResults.innerHTML = '';
+      empresaResults.style.display = 'none';
+      empresaIdInput.value = '';
+      return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+      buscarEmpresas(query);
+    }, 300);
+  });
+  
+  // Fechar resultados ao clicar fora
+  document.addEventListener('click', function(e) {
+    if (!empresaInput.contains(e.target) && !empresaResults.contains(e.target)) {
+      empresaResults.style.display = 'none';
+    }
+  });
+});
+
+function buscarEmpresas(query) {
+  const empresaResults = document.getElementById('empresaChecklistResults');
+  
+  fetch(`/supervisor/api/empresas?q=${encodeURIComponent(query)}`, {
+    credentials: 'same-origin'
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success && data.empresas.length > 0) {
+      empresaResults.innerHTML = data.empresas.map(empresa => `
+        <div class="dropdown-search-item" onclick="selecionarEmpresa(${empresa.id}, '${empresa.nome}', '${empresa.codigo}')">
+          <div class="dropdown-search-item-title">${empresa.nome}</div>
+          <div class="dropdown-search-item-details">Código: ${empresa.codigo}</div>
+        </div>
+      `).join('');
+      empresaResults.style.display = 'block';
+    } else {
+      empresaResults.innerHTML = '<div class="dropdown-search-item">Nenhuma empresa encontrada</div>';
+      empresaResults.style.display = 'block';
+    }
+  })
+  .catch(error => {
+    console.error('Erro ao buscar empresas:', error);
+    empresaResults.innerHTML = '<div class="dropdown-search-item">Erro ao buscar empresas</div>';
+    empresaResults.style.display = 'block';
+  });
+}
+
+function selecionarEmpresa(id, nome, codigo) {
+  const empresaInput = document.getElementById('empresaChecklist');
+  const empresaIdInput = document.getElementById('empresaChecklistId');
+  const empresaResults = document.getElementById('empresaChecklistResults');
+  
+  empresaInput.value = `${nome} (${codigo})`;
+  empresaIdInput.value = id;
+  empresaResults.style.display = 'none';
+}
+
+
+function atualizarContadores() {
+  const rows = document.querySelectorAll('#itensTableBody tr');
+  itemCounter = rows.length;
+  
+  // Atualizar contador visual se existir
+  const contadorElement = document.getElementById('contadorItens');
+  if (contadorElement) {
+    contadorElement.textContent = itemCounter;
+  }
+}
+
+// ===== FUNÇÕES PARA TEMPLATES =====
+
+function carregarTemplates() {
+  fetch('/supervisor/api/templates')
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        const select = document.getElementById('templateSelect');
+        select.innerHTML = '<option value="">Criar checklist do zero</option>';
+        
+        data.templates.forEach(template => {
+          const option = document.createElement('option');
+          option.value = template.id;
+          option.textContent = `${template.nome} (${template.itens_count} itens)`;
+          select.appendChild(option);
+        });
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao carregar templates:', error);
+    });
+}
+
+function carregarTemplate() {
+  const templateId = document.getElementById('templateSelect').value;
+  
+  if (!templateId) {
+    // Limpar itens se nenhum template selecionado
+    document.getElementById('itensTableBody').innerHTML = '';
+    itemCounter = 0;
+    atualizarContadores();
+    return;
+  }
+  
+  fetch(`/supervisor/api/templates/${templateId}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Preencher nome e descrição do checklist
+        document.getElementById('nomeChecklist').value = data.template.nome;
+        document.getElementById('descricaoChecklist').value = data.template.descricao || '';
+        
+        // Limpar itens existentes
+        document.getElementById('itensTableBody').innerHTML = '';
+        itemCounter = 0;
+        
+        // Adicionar itens do template
+        data.template.itens.forEach(item => {
+          itemCounter++;
+          
+          const tbody = document.getElementById('itensTableBody');
+          const newRow = document.createElement('tr');
+          newRow.id = `item-${itemCounter}`;
+          
+          newRow.innerHTML = `
+            <td>
+              <input type="text" name="itens[${itemCounter}][titulo]" class="form-control" value="${item.titulo}" required>
+            </td>
+            <td>
+              <textarea name="itens[${itemCounter}][descricao]" class="form-control" rows="2">${item.descricao || ''}</textarea>
+            </td>
+            <td>
+              <select name="itens[${itemCounter}][responsavel_id]" class="form-control" required>
+                <option value="">Selecione o responsável</option>
+                {% for usuario in usuarios %}
+                <option value="{{ usuario.id }}">{{ usuario.nome }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="checkbox" name="itens[${itemCounter}][obrigatorio]" ${item.obrigatorio ? 'checked' : ''}>
+            </td>
+            <td>
+              <button type="button" class="btn btn-danger btn-sm" onclick="removerItem(${itemCounter})">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          `;
+          
+          tbody.appendChild(newRow);
+        });
+        
+        atualizarContadores();
+        showSuccessAlert(`Template carregado com ${data.template.itens.length} itens!`);
+      } else {
+        showErrorAlert('Erro ao carregar template: ' + data.message);
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao carregar template:', error);
+      showErrorAlert('Erro ao carregar template');
+    });
+}
+
+// Carregar templates quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+  carregarTemplates();
+});
+</script>
+{% endblock %}
