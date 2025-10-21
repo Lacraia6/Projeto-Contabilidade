@@ -1,0 +1,539 @@
+{% extends "base.html" %}
+
+{% block title %}Mudanças de Tributação - Sistema DP & Contabilidade{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-exchange-alt"></i> Painel de Mudanças de Tributação</h1>
+    <p>Revise e gerencie as mudanças de tributação pendentes</p>
+  </div>
+
+  <!-- Container de Feedback -->
+  <div id="feedback-container" style="display: none;"></div>
+
+  {% if error %}
+    <div class="alert alert-danger">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>Erro:</strong> {{ error }}
+    </div>
+  {% endif %}
+
+  <!-- Lista de Mudanças Pendentes -->
+  <div class="dashboard-content">
+    {% if mudancas %}
+      <div class="mudancas-grid">
+        {% for mudanca_data in mudancas %}
+          {% set mudanca = mudanca_data.mudanca %}
+          {% set empresa = mudanca_data.empresa %}
+          {% set trib_anterior = mudanca_data.tributacao_anterior %}
+          {% set trib_nova = mudanca_data.tributacao_nova %}
+          {% set tarefas_sem_responsavel = mudanca_data.tarefas_sem_responsavel %}
+          
+          <div class="mudanca-card" data-mudanca-id="{{ mudanca.id }}">
+            <div class="mudanca-header">
+              <div class="mudanca-info">
+                <h3><i class="fas fa-building"></i> {{ empresa.nome }}</h3>
+                <div class="tributacao-change">
+                  <span class="tributacao-anterior">
+                    <i class="fas fa-arrow-left"></i> {{ trib_anterior.nome if trib_anterior else 'N/A' }}
+                  </span>
+                  <i class="fas fa-arrow-right"></i>
+                  <span class="tributacao-nova">
+                    {{ trib_nova.nome }} <i class="fas fa-arrow-right"></i>
+                  </span>
+                </div>
+                <div class="mudanca-details">
+                  <span class="data-mudanca">
+                    <i class="fas fa-calendar"></i> {{ mudanca.data_mudanca.strftime('%d/%m/%Y') }}
+                  </span>
+                  <span class="status status-{{ mudanca.status }}">
+                    <i class="fas fa-circle"></i> {{ mudanca.status.title() }}
+                  </span>
+                </div>
+              </div>
+              <div class="mudanca-actions">
+                {% if mudanca.status == 'pendente' %}
+                  <button class="btn btn-warning btn-sm" onclick="iniciarRevisao({{ mudanca.id }})">
+                    <i class="fas fa-edit"></i> Iniciar Revisão
+                  </button>
+                {% elif mudanca.status == 'em_revisao' %}
+                  <button class="btn btn-primary btn-sm" onclick="abrirModalVinculacao({{ mudanca.id }})">
+                    <i class="fas fa-link"></i> Vincular Responsáveis
+                  </button>
+                  <button class="btn btn-success btn-sm" onclick="concluirMudanca({{ mudanca.id }})">
+                    <i class="fas fa-check"></i> Concluir
+                  </button>
+                {% endif %}
+              </div>
+            </div>
+            
+            <div class="mudanca-body">
+              <div class="motivo-section">
+                <h4><i class="fas fa-comment"></i> Motivo da Mudança</h4>
+                <p>{{ mudanca.motivo }}</p>
+              </div>
+              
+              <div class="tarefas-section">
+                <h4><i class="fas fa-tasks"></i> Tarefas da Nova Tributação</h4>
+                {% if tarefas_sem_responsavel %}
+                  <div class="tarefas-list">
+                    {% for rel, tarefa in tarefas_sem_responsavel %}
+                      <div class="tarefa-item" data-relacionamento-id="{{ rel.id }}">
+                        <div class="tarefa-info">
+                          <span class="tarefa-nome">{{ tarefa.nome }}</span>
+                          <span class="tarefa-tipo">{{ tarefa.tipo }}</span>
+                          <span class="tarefa-setor">{{ tarefa.setor.nome if tarefa.setor else 'N/A' }}</span>
+                        </div>
+                        <div class="tarefa-responsavel">
+                          <span class="sem-responsavel">
+                            <i class="fas fa-user-times"></i> Sem responsável
+                          </span>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    Todas as tarefas já possuem responsáveis definidos.
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-check-circle"></i>
+        <h3>Nenhuma mudança pendente</h3>
+        <p>Todas as mudanças de tributação foram processadas.</p>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- Modal para Vincular Responsáveis -->
+<div id="modalVinculacao" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-link"></i> Vincular Responsáveis</h3>
+      <span class="close" onclick="fecharModalVinculacao()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div id="modalContent">
+        <!-- Conteúdo será carregado dinamicamente -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Concluir Mudança -->
+<div id="modalConcluir" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-check"></i> Concluir Mudança de Tributação</h3>
+      <span class="close" onclick="fecharModalConcluir()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>Atenção:</strong> Ao concluir, todas as tarefas devem ter responsáveis definidos.
+      </div>
+      
+      <form id="formConcluir">
+        <input type="hidden" id="mudancaIdConcluir" name="mudanca_id">
+        <div class="form-group">
+          <label for="observacoesConcluir">Observações (opcional):</label>
+          <textarea id="observacoesConcluir" name="observacoes" rows="3" 
+                    placeholder="Adicione observações sobre a mudança..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-check"></i> Concluir Mudança
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="fecharModalConcluir()">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.mudancas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.mudanca-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border-left: 4px solid #3498db;
+}
+
+.mudanca-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.mudanca-info h3 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+}
+
+.tributacao-change {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  font-weight: 500;
+}
+
+.tributacao-anterior {
+  color: #e74c3c;
+  background: #fdf2f2;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.tributacao-nova {
+  color: #27ae60;
+  background: #f0f9f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.mudanca-details {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.status {
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.status-pendente {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-em_revisao {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.status-concluida {
+  background: #d4edda;
+  color: #155724;
+}
+
+.mudanca-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mudanca-body {
+  padding: 20px;
+}
+
+.motivo-section, .tarefas-section {
+  margin-bottom: 20px;
+}
+
+.motivo-section h4, .tarefas-section h4 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.tarefas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tarefa-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 3px solid #3498db;
+}
+
+.tarefa-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tarefa-nome {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.tarefa-tipo, .tarefa-setor {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.sem-responsavel {
+  color: #e74c3c;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6c757d;
+}
+
+.empty-state i {
+  font-size: 4rem;
+  color: #27ae60;
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+}
+
+@media (max-width: 768px) {
+  .mudancas-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .mudanca-header {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .mudanca-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+</style>
+
+<script>
+let mudancaAtual = null;
+
+function iniciarRevisao(mudancaId) {
+  fetch(`/gerenciamento/api/mudanca-tributacao/${mudancaId}/tarefas`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        mudancaAtual = mudancaId;
+        abrirModalVinculacao(mudancaId);
+      } else {
+        showAlert('Erro ao carregar tarefas: ' + data.message, 'error');
+      }
+    })
+    .catch(error => {
+      showAlert('Erro ao carregar tarefas: ' + error, 'error');
+    });
+}
+
+function abrirModalVinculacao(mudancaId) {
+  mudancaAtual = mudancaId;
+  
+  fetch(`/gerenciamento/api/mudanca-tributacao/${mudancaId}/tarefas`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        const modalContent = document.getElementById('modalContent');
+        modalContent.innerHTML = `
+          <div class="empresa-info">
+            <h4><i class="fas fa-building"></i> ${data.empresa.nome}</h4>
+            <p><strong>Nova Tributação:</strong> ${data.tributacao_nova.nome}</p>
+          </div>
+          
+          <div class="tarefas-section">
+            <h4><i class="fas fa-tasks"></i> Tarefas sem Responsável</h4>
+            <div class="tarefas-list">
+              ${data.tarefas.map(tarefa => `
+                <div class="tarefa-item" data-relacionamento-id="${tarefa.relacionamento_id}">
+                  <div class="tarefa-info">
+                    <span class="tarefa-nome">${tarefa.nome}</span>
+                    <span class="tarefa-tipo">${tarefa.tipo} - ${tarefa.setor}</span>
+                  </div>
+                  <div class="tarefa-responsavel">
+                    <select class="form-control responsavel-select" data-relacionamento-id="${tarefa.relacionamento_id}">
+                      <option value="">Selecione um responsável</option>
+                    </select>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" onclick="salvarVinculacoes()">
+              <i class="fas fa-save"></i> Salvar Vinculações
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="fecharModalVinculacao()">
+              Cancelar
+            </button>
+          </div>
+        `;
+        
+        // Carregar usuários para os selects
+        carregarUsuarios();
+        
+        document.getElementById('modalVinculacao').style.display = 'block';
+      } else {
+        showAlert('Erro ao carregar tarefas: ' + data.message, 'error');
+      }
+    })
+    .catch(error => {
+      showAlert('Erro ao carregar tarefas: ' + error, 'error');
+    });
+}
+
+function carregarUsuarios() {
+  fetch('/gerenciamento/api/colaboradores')
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        const selects = document.querySelectorAll('.responsavel-select');
+        selects.forEach(select => {
+          data.usuarios.forEach(usuario => {
+            const option = document.createElement('option');
+            option.value = usuario.id;
+            option.textContent = usuario.nome;
+            select.appendChild(option);
+          });
+        });
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao carregar usuários:', error);
+    });
+}
+
+function salvarVinculacoes() {
+  const tarefas = [];
+  const selects = document.querySelectorAll('.responsavel-select');
+  
+  selects.forEach(select => {
+    if (select.value) {
+      tarefas.push({
+        relacionamento_id: parseInt(select.dataset.relacionamentoId)
+      });
+    }
+  });
+  
+  if (tarefas.length === 0) {
+    showAlert('Selecione pelo menos um responsável', 'warning');
+    return;
+  }
+  
+  const responsavelId = tarefas[0].relacionamento_id; // Usar o primeiro responsável selecionado
+  
+  fetch('/gerenciamento/api/vincular-responsavel-mudanca', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      mudanca_id: mudancaAtual,
+      responsavel_id: responsavelId,
+      tarefas: tarefas
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showAlert(data.message, 'success');
+      fecharModalVinculacao();
+      location.reload(); // Recarregar página para atualizar status
+    } else {
+      showAlert('Erro: ' + data.message, 'error');
+    }
+  })
+  .catch(error => {
+    showAlert('Erro ao salvar vinculações: ' + error, 'error');
+  });
+}
+
+function concluirMudanca(mudancaId) {
+  document.getElementById('mudancaIdConcluir').value = mudancaId;
+  document.getElementById('modalConcluir').style.display = 'block';
+}
+
+function fecharModalVinculacao() {
+  document.getElementById('modalVinculacao').style.display = 'none';
+  mudancaAtual = null;
+}
+
+function fecharModalConcluir() {
+  document.getElementById('modalConcluir').style.display = 'none';
+}
+
+// Form de concluir mudança
+document.getElementById('formConcluir').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const mudancaId = document.getElementById('mudancaIdConcluir').value;
+  const observacoes = document.getElementById('observacoesConcluir').value;
+  
+  fetch('/gerenciamento/api/concluir-mudanca-tributacao', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      mudanca_id: parseInt(mudancaId),
+      observacoes: observacoes
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showAlert(data.message, 'success');
+      fecharModalConcluir();
+      location.reload();
+    } else {
+      showAlert('Erro: ' + data.message, 'error');
+    }
+  })
+  .catch(error => {
+    showAlert('Erro ao concluir mudança: ' + error, 'error');
+  });
+});
+
+// Fechar modais ao clicar fora
+window.onclick = function(event) {
+  const modalVinculacao = document.getElementById('modalVinculacao');
+  const modalConcluir = document.getElementById('modalConcluir');
+  
+  if (event.target === modalVinculacao) {
+    fecharModalVinculacao();
+  }
+  if (event.target === modalConcluir) {
+    fecharModalConcluir();
+  }
+}
+</script>
+{% endblock %}

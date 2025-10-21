@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block title %}Responsáveis Padrão - Sistema Completo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-users-cog text-primary"></i>
+                    Responsáveis Padrão por Setor/Tributação
+                </h1>
+                <button class="btn btn-primary" onclick="mostrarModalCriarResponsavel()">
+                    <i class="fas fa-plus"></i> Novo Responsável Padrão
+                </button>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="filtro-setor" class="form-label">Setor</label>
+                            <select class="form-control" id="filtro-setor">
+                                <option value="">Todos os setores</option>
+                                {% for setor in setores %}
+                                <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-tributacao" class="form-label">Tributação</label>
+                            <select class="form-control" id="filtro-tributacao">
+                                <option value="">Todas as tributações</option>
+                                {% for tributacao in tributacoes %}
+                                <option value="{{ tributacao.id }}">{{ tributacao.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-tarefa" class="form-label">Tarefa</label>
+                            <select class="form-control" id="filtro-tarefa">
+                                <option value="">Todas as tarefas</option>
+                                {% for tarefa in tarefas %}
+                                <option value="{{ tarefa.id }}">{{ tarefa.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary me-2" onclick="limparFiltros()">
+                                <i class="fas fa-times"></i> Limpar
+                            </button>
+                            <button class="btn btn-primary" onclick="aplicarFiltros()">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Responsáveis Padrão -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list"></i>
+                        Responsáveis Padrão Configurados
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="tabela-responsaveis">
+                            <thead>
+                                <tr>
+                                    <th>Setor</th>
+                                    <th>Tributação</th>
+                                    <th>Tarefa</th>
+                                    <th>Responsável</th>
+                                    <th>Status</th>
+                                    <th>Criado em</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for responsavel in responsaveis_padrao %}
+                                <tr data-setor="{{ responsavel.setor_id }}" 
+                                    data-tributacao="{{ responsavel.tributacao_id }}" 
+                                    data-tarefa="{{ responsavel.tarefa_id }}">
+                                    <td>{{ responsavel.setor.nome }}</td>
+                                    <td>{{ responsavel.tributacao.nome }}</td>
+                                    <td>{{ responsavel.tarefa.nome }}</td>
+                                    <td>{{ responsavel.responsavel.nome }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if responsavel.ativo else 'secondary' }}">
+                                            {{ 'Ativo' if responsavel.ativo else 'Inativo' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ responsavel.criado_em|br_date }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-warning" onclick="editarResponsavel({{ responsavel.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="desativarResponsavel({{ responsavel.id }})">
+                                            <i class="fas fa-ban"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if not responsaveis_padrao %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-users-cog fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhum responsável padrão configurado</h5>
+                        <p class="text-muted">Configure responsáveis padrão para automatizar a atribuição de tarefas.</p>
+                        <button class="btn btn-primary" onclick="mostrarModalCriarResponsavel()">
+                            <i class="fas fa-plus"></i> Criar Primeiro Responsável
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para criar/editar responsável padrão -->
+<div class="modal fade" id="modalResponsavelPadrao" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloModalResponsavel">Novo Responsável Padrão</h5>
+                <button type="button" class="btn-close" onclick="fecharModalResponsavel()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formResponsavelPadrao">
+                    <input type="hidden" id="responsavel-id" value="">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="setor-responsavel" class="form-label">Setor *</label>
+                                <select class="form-control" id="setor-responsavel" required>
+                                    <option value="">Selecione um setor</option>
+                                    {% for setor in setores %}
+                                    <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tributacao-responsavel" class="form-label">Tributação *</label>
+                                <select class="form-control" id="tributacao-responsavel" required>
+                                    <option value="">Selecione uma tributação</option>
+                                    {% for tributacao in tributacoes %}
+                                    <option value="{{ tributacao.id }}">{{ tributacao.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tarefa-responsavel" class="form-label">Tarefa *</label>
+                                <select class="form-control" id="tarefa-responsavel" required>
+                                    <option value="">Selecione uma tarefa</option>
+                                    {% for tarefa in tarefas %}
+                                    <option value="{{ tarefa.id }}">{{ tarefa.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="usuario-responsavel" class="form-label">Responsável *</label>
+                                <div class="search-container">
+                                    <input type="text" class="form-control" id="busca-responsavel" 
+                                           placeholder="Digite o nome do responsável..." autocomplete="off">
+                                    <div class="search-results" id="resultados-busca-responsavel"></div>
+                                </div>
+                                <input type="hidden" id="responsavel-selecionado" value="">
+                                <div id="responsavel-info" class="mt-2" style="display: none;">
+                                    <span class="badge bg-primary"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="responsavel-ativo" checked>
+                            <label class="form-check-label" for="responsavel-ativo">
+                                Responsável ativo
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalResponsavel()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarResponsavelPadrao()">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let responsaveisDisponiveis = [];
+
+// Configurar busca de responsáveis
+document.addEventListener('DOMContentLoaded', function() {
+    configurarBuscaResponsavel();
+    carregarUsuariosDisponiveis();
+});
+
+function configurarBuscaResponsavel() {
+    const input = document.getElementById('busca-responsavel');
+    const resultados = document.getElementById('resultados-busca-responsavel');
+    
+    input.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        if (query.length < 2) {
+            resultados.style.display = 'none';
+            return;
+        }
+        
+        const filtrados = responsaveisDisponiveis.filter(user => 
+            user.nome.toLowerCase().includes(query)
+        );
+        
+        mostrarResultadosBusca(filtrados);
+    });
+    
+    // Esconder resultados ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !resultados.contains(e.target)) {
+            resultados.style.display = 'none';
+        }
+    });
+}
+
+function carregarUsuariosDisponiveis() {
+    fetch('/api/usuarios?tipo=normal')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                responsaveisDisponiveis = data.usuarios;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar usuários:', error);
+        });
+}
+
+function mostrarResultadosBusca(usuarios) {
+    const resultados = document.getElementById('resultados-busca-responsavel');
+    resultados.innerHTML = '';
+    
+    if (usuarios.length === 0) {
+        resultados.innerHTML = '<div class="search-item">Nenhum usuário encontrado</div>';
+    } else {
+        usuarios.forEach(usuario => {
+            const item = document.createElement('div');
+            item.className = 'search-item';
+            item.innerHTML = `
+                <strong>${usuario.nome}</strong><br>
+                <small class="text-muted">${usuario.setor || 'Sem setor'}</small>
+            `;
+            item.onclick = () => selecionarResponsavel(usuario);
+            resultados.appendChild(item);
+        });
+    }
+    
+    resultados.style.display = 'block';
+}
+
+function selecionarResponsavel(usuario) {
+    document.getElementById('busca-responsavel').value = usuario.nome;
+    document.getElementById('responsavel-selecionado').value = usuario.id;
+    
+    const info = document.getElementById('responsavel-info');
+    info.querySelector('.badge').textContent = `${usuario.nome} (${usuario.setor || 'Sem setor'})`;
+    info.style.display = 'block';
+    
+    document.getElementById('resultados-busca-responsavel').style.display = 'none';
+}
+
+function mostrarModalCriarResponsavel() {
+    document.getElementById('tituloModalResponsavel').textContent = 'Novo Responsável Padrão';
+    document.getElementById('responsavel-id').value = '';
+    document.getElementById('formResponsavelPadrao').reset();
+    document.getElementById('responsavel-ativo').checked = true;
+    document.getElementById('responsavel-info').style.display = 'none';
+    document.getElementById('modalResponsavelPadrao').style.display = 'block';
+}
+
+function fecharModalResponsavel() {
+    document.getElementById('modalResponsavelPadrao').style.display = 'none';
+    document.getElementById('formResponsavelPadrao').reset();
+    document.getElementById('responsavel-info').style.display = 'none';
+}
+
+function salvarResponsavelPadrao() {
+    const setorId = document.getElementById('setor-responsavel').value;
+    const tributacaoId = document.getElementById('tributacao-responsavel').value;
+    const tarefaId = document.getElementById('tarefa-responsavel').value;
+    const responsavelId = document.getElementById('responsavel-selecionado').value;
+    const ativo = document.getElementById('responsavel-ativo').checked;
+    
+    if (!setorId || !tributacaoId || !tarefaId || !responsavelId) {
+        showAlertModal('Preencha todos os campos obrigatórios', 'error', 'Erro');
+        return;
+    }
+    
+    const data = {
+        setor_id: parseInt(setorId),
+        tributacao_id: parseInt(tributacaoId),
+        tarefa_id: parseInt(tarefaId),
+        responsavel_id: parseInt(responsavelId),
+        ativo: ativo
+    };
+    
+    fetch('/sistema-completo-tarefas/api/criar-responsavel-padrao', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlertModal(data.message, 'success', 'Sucesso');
+            fecharModalResponsavel();
+            location.reload();
+        } else {
+            showAlertModal(data.message, 'error', 'Erro');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showAlertModal('Erro ao salvar responsável padrão', 'error', 'Erro');
+    });
+}
+
+function editarResponsavel(id) {
+    showAlertModal('Funcionalidade de edição em desenvolvimento', 'info', 'Info');
+}
+
+function desativarResponsavel(id) {
+    showConfirmModal(
+        'Tem certeza que deseja desativar este responsável padrão?',
+        'Desativar Responsável',
+        () => {
+            showAlertModal('Funcionalidade de desativação em desenvolvimento', 'info', 'Info');
+        }
+    );
+}
+
+function aplicarFiltros() {
+    const filtroSetor = document.getElementById('filtro-setor').value;
+    const filtroTributacao = document.getElementById('filtro-tributacao').value;
+    const filtroTarefa = document.getElementById('filtro-tarefa').value;
+    
+    const linhas = document.querySelectorAll('#tabela-responsaveis tbody tr');
+    
+    linhas.forEach(linha => {
+        let mostrar = true;
+        
+        if (filtroSetor && linha.dataset.setor !== filtroSetor) {
+            mostrar = false;
+        }
+        if (filtroTributacao && linha.dataset.tributacao !== filtroTributacao) {
+            mostrar = false;
+        }
+        if (filtroTarefa && linha.dataset.tarefa !== filtroTarefa) {
+            mostrar = false;
+        }
+        
+        linha.style.display = mostrar ? '' : 'none';
+    });
+}
+
+function limparFiltros() {
+    document.getElementById('filtro-setor').value = '';
+    document.getElementById('filtro-tributacao').value = '';
+    document.getElementById('filtro-tarefa').value = '';
+    
+    const linhas = document.querySelectorAll('#tabela-responsaveis tbody tr');
+    linhas.forEach(linha => {
+        linha.style.display = '';
+    });
+}
+</script>
+
+<style>
+.search-container {
+    position: relative;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.search-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.search-item:hover {
+    background-color: #f8f9fa;
+}
+
+.search-item:last-child {
+    border-bottom: none;
+}
+</style>
+{% endblock %}
+
+
+

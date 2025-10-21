@@ -54,13 +54,13 @@
     <div class="card-header">
       <h3><i class="fas fa-cogs"></i> Gerenciamento</h3>
       <div class="card-actions">
-        <button type="button" class="btn btn-primary" onclick="showTab('empresas')">
+        <button type="button" id="btnAbaEmpresas" class="btn btn-primary" style="pointer-events: auto !important; z-index: 99999 !important; cursor: pointer !important; position: relative !important;">
           <i class="fas fa-building"></i> Empresas
         </button>
-        <button type="button" class="btn btn-success" onclick="showTab('tarefas')">
+        <button type="button" id="btnAbaTarefas" class="btn btn-success" style="pointer-events: auto !important; z-index: 99999 !important; cursor: pointer !important; position: relative !important;">
           <i class="fas fa-tasks"></i> Tarefas
         </button>
-        <button type="button" class="btn btn-info" onclick="showTab('responsaveis')">
+        <button type="button" id="btnAbaResponsaveis" class="btn btn-info" style="pointer-events: auto !important; z-index: 99999 !important; cursor: pointer !important; position: relative !important;">
           <i class="fas fa-users"></i> Responsáveis
         </button>
       </div>
@@ -123,50 +123,43 @@
     <div id="tab-tarefas" class="tab-content hidden">
       <div class="content-card">
         <div class="card-header">
-          <h3><i class="fas fa-tasks"></i> Tarefas</h3>
+          <h3><i class="fas fa-tasks"></i> Tarefas do Setor</h3>
           <div class="header-actions">
-            <button class="btn btn-success" onclick="mostrarModalCriarTarefa()">
+            <button class="btn btn-success" id="btnNovaTarefa">
               <i class="fas fa-plus"></i> Nova Tarefa
-            </button>
-            <button class="btn btn-primary" onclick="filtrarTarefas()">
-              <i class="fas fa-filter"></i> Filtrar
             </button>
           </div>
         </div>
         
         <div class="card-body">
-          <!-- Busca e Filtros -->
-          <div class="row mb-3">
+          <!-- Estatísticas -->
+          <div class="row mb-4">
             <div class="col-md-4">
-              <label for="busca-tarefas">Buscar Tarefas:</label>
-              <div class="search-container">
-                <input type="text" id="busca-tarefas" class="form-control" placeholder="Digite o nome da tarefa...">
-                <div id="resultados-busca-tarefas" class="search-results"></div>
+              <div class="metric-card">
+                <div class="metric-icon"><i class="fas fa-tasks"></i></div>
+                <div class="metric-content">
+                  <h3 id="total-tarefas-setor">0</h3>
+                  <p>Tarefas do Setor</p>
+                </div>
               </div>
             </div>
-            <div class="col-md-3">
-              <label for="tributacao-filter">Filtrar por Tributação:</label>
-              <select id="tributacao-filter" class="form-control" onchange="filtrarTarefas()">
-                <option value="">Todas as Tributações</option>
-                {% for tributacao in tributacoes %}
-                <option value="{{ tributacao.id }}">{{ tributacao.nome }}</option>
-                {% endfor %}
-              </select>
+            <div class="col-md-4">
+              <div class="metric-card">
+                <div class="metric-icon"><i class="fas fa-link"></i></div>
+                <div class="metric-content">
+                  <h3 id="total-vinculacoes">0</h3>
+                  <p>Vinculações Ativas</p>
+                </div>
+              </div>
             </div>
-            <div class="col-md-3">
-              <label for="setor-filter">Filtrar por Setor:</label>
-              <select id="setor-filter" class="form-control" onchange="filtrarTarefas()">
-                <option value="">Todos os Setores</option>
-                {% for setor in setores %}
-                <option value="{{ setor.id }}">{{ setor.nome }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-2">
-              <label>&nbsp;</label>
-              <button class="btn btn-secondary btn-block" onclick="limparFiltros()">
-                <i class="fas fa-times"></i> Limpar
-              </button>
+            <div class="col-md-4">
+              <div class="metric-card">
+                <div class="metric-icon"><i class="fas fa-users"></i></div>
+                <div class="metric-content">
+                  <h3 id="total-responsaveis">0</h3>
+                  <p>Responsáveis</p>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -177,15 +170,13 @@
                 <tr>
                   <th>Nome</th>
                   <th>Tipo</th>
-                  <th>Tributação</th>
                   <th>Setor</th>
                   <th>Tarefa Comum</th>
-                  <th>Obrigatória</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody id="tarefas-tbody">
-                <!-- Tarefas serão carregadas aqui -->
+                <!-- Tarefas serão carregadas via JavaScript -->
               </tbody>
             </table>
           </div>
@@ -199,7 +190,7 @@
         <div class="card-header">
           <h3><i class="fas fa-users"></i> Responsáveis</h3>
           <div class="header-actions">
-            <button class="btn btn-primary" onclick="mostrarModalVincularResponsavel()">
+            <button class="btn btn-primary" onclick="testarAberturaModal()">
               <i class="fas fa-link"></i> Vincular Responsável
             </button>
           </div>
@@ -262,12 +253,12 @@
 <!-- Modal para Alterar Tributação -->
 <div class="modal fade" id="modalAlterarTributacao" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+    <div class="modal-content modal-standard">
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="fas fa-exchange-alt"></i> Alterar Tributação
         </h5>
-        <button type="button" class="close" data-dismiss="modal">
+        <button type="button" class="close" onclick="fecharModalAlterarTributacao()">
           <span>&times;</span>
         </button>
       </div>
@@ -277,7 +268,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-secondary" onclick="fecharModalAlterarTributacao()">Cancelar</button>
         <button type="button" class="btn btn-primary" id="confirmar-alteracao">
           <i class="fas fa-check"></i> Confirmar Alteração
         </button>
@@ -294,7 +285,7 @@
         <h5 class="modal-title">
           <i class="fas fa-building"></i> Detalhes da Empresa
         </h5>
-        <button type="button" class="close" data-dismiss="modal">
+        <button type="button" class="close" onclick="fecharModalVerEmpresa()">
           <span>&times;</span>
         </button>
       </div>
@@ -304,7 +295,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+        <button type="button" class="btn btn-secondary" onclick="fecharModalVerEmpresa()">Fechar</button>
       </div>
     </div>
   </div>
@@ -318,6 +309,75 @@ let novaTributacaoId = null;
 // Inicialização
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando sistema melhorado de tarefas...');
+    
+    // Debug: Verificar se elementos existem
+    const modal = document.getElementById('modalVincularResponsavel');
+    const empresaInput = document.getElementById('empresa-search-vincular');
+    const resultsDiv = document.getElementById('empresa-results-vincular');
+    
+    console.log('🔍 DEBUG - Elementos encontrados:');
+    console.log('📱 Modal:', modal ? 'SIM' : 'NÃO');
+    console.log('🔍 Input empresa:', empresaInput ? 'SIM' : 'NÃO');
+    console.log('📊 Results div:', resultsDiv ? 'SIM' : 'NÃO');
+    
+    if (modal) {
+        console.log('📱 Modal classes:', modal.className);
+        console.log('📱 Modal style:', modal.style.cssText);
+    }
+    
+    // Configurar botões das abas com IDs específicos
+    const btnAbaEmpresas = document.getElementById('btnAbaEmpresas');
+    const btnAbaTarefas = document.getElementById('btnAbaTarefas');
+    const btnAbaResponsaveis = document.getElementById('btnAbaResponsaveis');
+    
+    console.log('🔍 DEBUG - Botões das abas:');
+    console.log('📱 Botão Empresas:', btnAbaEmpresas ? 'SIM' : 'NÃO');
+    console.log('📱 Botão Tarefas:', btnAbaTarefas ? 'SIM' : 'NÃO');
+    console.log('📱 Botão Responsáveis:', btnAbaResponsaveis ? 'SIM' : 'NÃO');
+    
+    if (btnAbaEmpresas) {
+        btnAbaEmpresas.addEventListener('click', function(e) {
+            console.log('🖱️ CLIQUE DETECTADO: Empresas');
+            e.preventDefault();
+            e.stopPropagation();
+            showTab('empresas');
+        });
+        console.log('✅ Event listener configurado: Empresas');
+    }
+    
+    if (btnAbaTarefas) {
+        btnAbaTarefas.addEventListener('click', function(e) {
+            console.log('🖱️ CLIQUE DETECTADO: Tarefas');
+            e.preventDefault();
+            e.stopPropagation();
+            showTab('tarefas');
+        });
+        console.log('✅ Event listener configurado: Tarefas');
+    }
+    
+    if (btnAbaResponsaveis) {
+        btnAbaResponsaveis.addEventListener('click', function(e) {
+            console.log('🖱️ CLIQUE DETECTADO: Responsáveis');
+            e.preventDefault();
+            e.stopPropagation();
+            showTab('responsaveis');
+        });
+        console.log('✅ Event listener configurado: Responsáveis');
+    }
+    
+    console.log('✅ Todos os event listeners configurados');
+    
+    // Configurar botão "Nova Tarefa"
+    const btnNovaTarefa = document.getElementById('btnNovaTarefa');
+    if (btnNovaTarefa) {
+        btnNovaTarefa.addEventListener('click', function(e) {
+            console.log('🖱️ CLIQUE: Nova Tarefa');
+            e.preventDefault();
+            e.stopPropagation();
+            mostrarModalCriarTarefa();
+        });
+        console.log('✅ Botão Nova Tarefa configurado');
+    }
     
     // Carregar dados iniciais
     carregarEmpresas();
@@ -334,25 +394,151 @@ document.addEventListener('DOMContentLoaded', function() {
     // Configurar sistema de busca
     configurarBuscaTarefas();
     
+    // Configurar fechamento de modais
+    configurarFechamentoModais();
+    
+    // Forçar clicabilidade dos botões
+    forcarClicabilidadeBotoes();
+    
+    // Configurar comportamento do checkbox "Tarefa Comum"
+    configurarCheckboxTarefaComum();
+    
     console.log('✅ Sistema melhorado de tarefas inicializado!');
 });
 
-// Funções de navegação
-function showTab(tabName) {
-    // Esconder apenas as abas internas (não a aba principal)
-    document.querySelectorAll('#tab-empresas, #tab-tarefas, #tab-responsaveis').forEach(tab => {
-        tab.classList.add('hidden');
-        tab.classList.remove('active');
+// Forçar clicabilidade dos botões
+function forcarClicabilidadeBotoes() {
+    // Forçar clicabilidade em todos os botões
+    const botoes = document.querySelectorAll('button, .btn, input[type="button"], input[type="submit"]');
+    botoes.forEach(botao => {
+        botao.style.pointerEvents = 'auto';
+        botao.style.cursor = 'pointer';
+        botao.style.zIndex = '9999';
+        botao.style.position = 'relative';
+        
+        // Remover data-dismiss se existir
+        if (botao.hasAttribute('data-dismiss')) {
+            botao.removeAttribute('data-dismiss');
+        }
     });
     
-    // Mostrar aba selecionada
-    const tab = document.getElementById(`tab-${tabName}`);
-    if (tab) {
-        tab.classList.remove('hidden');
-        tab.classList.add('active');
+    console.log(`✅ Forçada clicabilidade em ${botoes.length} botões`);
+}
+
+// Configurar comportamento do checkbox "Tarefa Comum"
+function configurarCheckboxTarefaComum() {
+    const checkbox = document.getElementById('tarefa-comum');
+    const selectTributacao = document.getElementById('tarefa-tributacao');
+    
+    if (checkbox && selectTributacao) {
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Se tarefa comum está marcada, desabilitar e limpar tributação
+                selectTributacao.disabled = true;
+                selectTributacao.value = '';
+                selectTributacao.style.opacity = '0.5';
+                console.log('✅ Tarefa Comum selecionada - Tributação desabilitada');
+            } else {
+                // Se tarefa comum não está marcada, habilitar tributação
+                selectTributacao.disabled = false;
+                selectTributacao.style.opacity = '1';
+                console.log('✅ Tarefa específica selecionada - Tributação habilitada');
+            }
+        });
+        
+        // Configurar estado inicial
+        if (checkbox.checked) {
+            selectTributacao.disabled = true;
+            selectTributacao.value = '';
+            selectTributacao.style.opacity = '0.5';
+        }
+    }
+}
+
+// Configurar fechamento de modais
+function configurarFechamentoModais() {
+    // Fechar modais ao clicar no backdrop
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('modal-backdrop')) {
+            // Fechar todos os modais abertos
+            fecharModalCriarTarefa();
+            fecharModalVincularResponsavel();
+            fecharModalAlterarTributacao();
+            fecharModalVerEmpresa();
+        }
+    });
+    
+    // Fechar modais ao pressionar ESC
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            fecharModalCriarTarefa();
+            fecharModalVincularResponsavel();
+            fecharModalAlterarTributacao();
+            fecharModalVerEmpresa();
+        }
+    });
+}
+
+// Funções de navegação
+function showTab(tabName) {
+    console.log(`🔄 MUDANDO PARA ABA: ${tabName}`);
+    
+    // Verificar se a aba existe
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    console.log(`📱 Aba alvo encontrada:`, targetTab ? 'SIM' : 'NÃO');
+    
+    if (!targetTab) {
+        console.error(`❌ Aba '${tabName}' não encontrada!`);
+        return;
     }
     
-    console.log(`🔄 Mudando para aba: ${tabName}`);
+    // PRIMEIRO: Remover active de TODAS as abas
+    const allTabs = document.querySelectorAll('#tab-empresas, #tab-tarefas, #tab-responsaveis');
+    console.log(`📱 Total de abas: ${allTabs.length}`);
+    
+    allTabs.forEach((tab, index) => {
+        const tabId = tab.id;
+        const wasActive = tab.classList.contains('active');
+        
+        // Remover active
+        tab.classList.remove('active');
+        
+        // Adicionar hidden
+        if (!tab.classList.contains('hidden')) {
+            tab.classList.add('hidden');
+        }
+        
+        // FORÇAR display none via JavaScript
+        tab.style.display = 'none';
+        
+        console.log(`📱 Aba ${index} (${tabId}): Era ativa=${wasActive}, Agora ativa=${tab.classList.contains('active')}, Hidden=${tab.classList.contains('hidden')}, Display=${tab.style.display}`);
+    });
+    
+    // SEGUNDO: Ativar apenas a aba selecionada
+    console.log(`📱 Ativando aba: tab-${tabName}`);
+    targetTab.classList.remove('hidden');
+    targetTab.classList.add('active');
+    
+    // Forçar display via JavaScript também
+    targetTab.style.display = 'block';
+    
+    console.log(`📱 Aba alvo final:`);
+    console.log(`   - Hidden: ${targetTab.classList.contains('hidden')}`);
+    console.log(`   - Active: ${targetTab.classList.contains('active')}`);
+    console.log(`   - Style display: ${targetTab.style.display}`);
+    console.log(`   - Computed display: ${window.getComputedStyle(targetTab).display}`);
+    console.log(`✅ Mudança concluída`);
+    
+    // Verificar outras abas
+    allTabs.forEach((tab, index) => {
+        if (tab.id !== `tab-${tabName}`) {
+            const display = window.getComputedStyle(tab).display;
+            console.log(`📱 Aba ${index} (${tab.id}) display: ${display}`);
+            if (display !== 'none') {
+                console.warn(`⚠️ ATENÇÃO: Aba ${tab.id} ainda está visível!`);
+            }
+        }
+    });
 }
 
 // Funções de empresas
@@ -390,9 +576,9 @@ async function verEmpresa(empresaId) {
         if (data.success) {
             empresaSelecionada = empresaId;
             mostrarDetalhesEmpresa(data.tarefas);
-            $('#modalVerEmpresa').modal('show');
+            mostrarModalVerEmpresa();
         } else {
-            showAlertModal('Erro', data.message, 'error');
+            showAlertModal(data.message, 'error', 'Erro');
         }
     } catch (error) {
         console.error('❌ Erro ao carregar empresa:', error);
@@ -483,9 +669,9 @@ async function alterarTributacao(empresaId) {
         
         if (data.success) {
             mostrarWizardAlteracao(data.empresa);
-            $('#modalAlterarTributacao').modal('show');
+            mostrarModalAlterarTributacao();
         } else {
-            showAlertModal('Erro', data.message, 'error');
+            showAlertModal(data.message, 'error', 'Erro');
         }
     } catch (error) {
         console.error('❌ Erro ao alterar tributação:', error);
@@ -683,70 +869,86 @@ async function carregarUsuariosNosSelects() {
     }
 }
 
-// Funções de tarefas
+// ===== FUNÇÕES DA ABA TAREFAS (NOVA VERSÃO LIMPA) =====
+
+// Carregar tarefas do setor
 async function carregarTarefas() {
     try {
-        console.log('📋 Carregando tarefas...');
+        console.log('📋 Carregando tarefas do setor...');
         
-        // Buscar tarefas via API
-        const response = await fetch('/tarefas-melhoradas/api/tarefas');
-        const data = await response.json();
+        const response = await fetch('/tarefas-melhoradas/api/tarefas', {
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
         
-        if (data.success) {
-            mostrarTarefas(data.tarefas);
-        } else {
-            // Fallback para dados do backend
-            mostrarTarefasBackend();
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        console.log('✅ Tarefas carregadas!');
+        const data = await response.json();
+        console.log('📊 Tarefas recebidas:', data);
+        
+        if (data.success && data.tarefas) {
+            mostrarTarefas(data.tarefas);
+            atualizarEstatisticasTarefas(data.tarefas.length);
+        } else {
+            mostrarTarefas([]);
+        }
+        
+        console.log('✅ Tarefas carregadas com sucesso!');
     } catch (error) {
         console.error('❌ Erro ao carregar tarefas:', error);
-        // Fallback para dados do backend
-        mostrarTarefasBackend();
+        mostrarTarefas([]);
     }
 }
 
 function mostrarTarefas(tarefas) {
+    console.log('📋 Mostrando', tarefas.length, 'tarefas');
+    
     const tbody = document.getElementById('tarefas-tbody');
-    if (!tbody) return;
+    if (!tbody) {
+        console.error('❌ Tbody não encontrado!');
+        return;
+    }
     
-    let html = '';
-    tarefas.forEach(tarefa => {
-        html += `
-            <tr>
-                <td>${tarefa.nome}</td>
-                <td><span class="badge badge-info">${tarefa.tipo}</span></td>
-                <td>${tarefa.tributacao || 'N/A'}</td>
-                <td>${tarefa.setor || 'N/A'}</td>
-                <td>
-                    ${tarefa.tarefa_comum ? 
-                        '<span class="badge badge-success">Sim</span>' : 
-                        '<span class="badge badge-secondary">Não</span>'
-                    }
-                </td>
-                <td>
-                    ${tarefa.obrigatoria ? 
-                        '<span class="badge badge-primary">Obrigatória</span>' : 
-                        '<span class="badge badge-warning">Opcional</span>'
-                    }
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-info" onclick="editarTarefa(${tarefa.id})">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="excluirTarefa(${tarefa.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
+    if (tarefas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma tarefa encontrada</td></tr>';
+        return;
+    }
     
-    if (html) {
-        tbody.innerHTML = html;
-    } else {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhuma tarefa encontrada</td></tr>';
+    const html = tarefas.map(tarefa => `
+        <tr>
+            <td>${tarefa.nome}</td>
+            <td><span class="badge badge-info">${tarefa.tipo}</span></td>
+            <td>${tarefa.setor || 'N/A'}</td>
+            <td>
+                ${tarefa.tarefa_comum ? 
+                    '<span class="badge badge-success">Sim</span>' : 
+                    '<span class="badge badge-secondary">Não</span>'
+                }
+            </td>
+            <td>
+                <button class="btn btn-sm btn-info" onclick="editarTarefa(${tarefa.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="confirmarExclusaoTarefa(${tarefa.id}, '${tarefa.nome}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    tbody.innerHTML = html;
+    console.log('✅ Tarefas exibidas na tabela');
+}
+
+function atualizarEstatisticasTarefas(total) {
+    const totalElement = document.getElementById('total-tarefas-setor');
+    if (totalElement) {
+        totalElement.textContent = total;
     }
 }
 
@@ -756,41 +958,8 @@ function mostrarTarefasBackend() {
     
     let html = '';
     
-    // Usar dados do backend se disponíveis
-    {% if tarefas_filtradas %}
-    {% for tarefa in tarefas_filtradas %}
-    html += `
-        <tr>
-            <td>{{ tarefa.nome }}</td>
-            <td><span class="badge badge-info">{{ tarefa.tipo }}</span></td>
-            <td>{{ tarefa.tributacao.nome if tarefa.tributacao else 'N/A' }}</td>
-            <td>{{ tarefa.setor.nome if tarefa.setor else 'N/A' }}</td>
-            <td>
-                {% if tarefa.tarefa_comum %}
-                    <span class="badge badge-success">Sim</span>
-                {% else %}
-                    <span class="badge badge-secondary">Não</span>
-                {% endif %}
-            </td>
-            <td>
-                {% if tarefa.obrigatoria %}
-                    <span class="badge badge-primary">Obrigatória</span>
-                {% else %}
-                    <span class="badge badge-warning">Opcional</span>
-                {% endif %}
-            </td>
-            <td>
-                <button class="btn btn-sm btn-info" onclick="editarTarefa({{ tarefa.id }})">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="excluirTarefa({{ tarefa.id }})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        </tr>
-    `;
-    {% endfor %}
-    {% endif %}
+    // Os dados serão carregados via API
+    // Código Jinja2 removido para evitar conflitos JavaScript
     
     if (html) {
         tbody.innerHTML = html;
@@ -889,39 +1058,170 @@ function configurarBuscaTarefas() {
 }
 
 async function buscarTarefas(query) {
+    console.log('🔍 Buscando tarefas com query:', query);
+    
+    if (query.length < 2) {
+        const resultados = document.getElementById('resultados-busca-tarefas');
+        if (resultados) {
+            resultados.style.display = 'none';
+            resultados.classList.remove('show');
+        }
+        return;
+    }
+    
     try {
-        const response = await fetch(`/tarefas-melhoradas/api/tarefas/buscar?q=${encodeURIComponent(query)}`);
+        console.log('🌐 Fazendo requisição para:', `/tarefas-melhoradas/api/tarefas/buscar?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`/tarefas-melhoradas/api/tarefas/buscar?q=${encodeURIComponent(query)}`, {
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response ok:', response.ok);
+        console.log('📡 Response headers:', response.headers);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log('📊 Dados recebidos:', data);
+        console.log('📊 Tipo dos dados:', typeof data);
+        console.log('📊 Success:', data.success);
+        console.log('📊 Tarefas:', data.tarefas);
         
         if (data.success) {
-            mostrarResultadosBusca(data.tarefas, 'resultados-busca-tarefas');
+            console.log('✅ Busca bem-sucedida, tarefas encontradas:', data.tarefas ? data.tarefas.length : 0);
+            if (data.tarefas && data.tarefas.length > 0) {
+                console.log('📋 Tarefas encontradas:', data.tarefas);
+                mostrarResultadosBusca(data.tarefas, 'resultados-busca-tarefas');
+            } else {
+                console.log('⚠️ Nenhuma tarefa encontrada');
+                mostrarResultadosBusca([], 'resultados-busca-tarefas');
+            }
+        } else {
+            console.error('❌ Erro na busca:', data.message);
+            mostrarResultadosBusca([], 'resultados-busca-tarefas');
         }
     } catch (error) {
-        console.error('Erro na busca:', error);
+        console.error('❌ Erro na busca:', error);
+        mostrarResultadosBusca([], 'resultados-busca-tarefas');
     }
 }
 
 function mostrarResultadosBusca(items, containerId) {
+    console.log('🎯 Mostrando resultados para container:', containerId, 'items:', items);
+    console.log('🎯 Items type:', typeof items);
+    console.log('🎯 Items length:', items ? items.length : 'undefined');
+    
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+        console.error('❌ Container não encontrado:', containerId);
+        console.error('❌ Tentando encontrar elementos com ID similar...');
+        const allElements = document.querySelectorAll('[id*="resultados"]');
+        console.log('❌ Elementos encontrados:', allElements);
+        return;
+    }
+    
+    console.log('✅ Container encontrado:', container);
+    console.log('✅ Container classes:', container.className);
     
     let html = '';
-    items.forEach(item => {
-        html += `<div class="search-item" onclick="selecionarItem('${item.nome}', ${item.id})">${item.nome}</div>`;
-    });
+    if (items && items.length > 0) {
+        console.log('📋 Gerando HTML para', items.length, 'itens');
+        items.forEach((item, index) => {
+            console.log(`📋 Item ${index}:`, item);
+            html += `<div class="search-item-standard" onclick="selecionarItem('${item.nome}', ${item.id})">${item.nome}</div>`;
+        });
+    } else {
+        console.log('⚠️ Nenhum item encontrado, mostrando mensagem padrão');
+        html = '<div class="search-item-standard">Nenhuma tarefa encontrada</div>';
+    }
     
+    console.log('📝 HTML gerado:', html);
     container.innerHTML = html;
-    container.style.display = html ? 'block' : 'none';
+    container.style.display = 'block';
+    container.classList.add('show');
+    
+    console.log('✅ Resultados exibidos no container:', containerId);
+    console.log('✅ Container display:', container.style.display);
+    console.log('✅ Container classes:', container.className);
+    console.log('✅ Container visibility:', window.getComputedStyle(container).visibility);
+    console.log('✅ Container z-index:', window.getComputedStyle(container).zIndex);
 }
 
 function selecionarItem(nome, id) {
-    // Implementar seleção de item
-    console.log('Item selecionado:', nome, id);
+    console.log('🎯 Item selecionado:', nome, id);
+    
+    // Preencher o campo de busca com o nome selecionado
+    const input = document.getElementById('busca-tarefas');
+    if (input) {
+        input.value = nome;
+    }
+    
+    // Esconder resultados
+    const resultados = document.getElementById('resultados-busca-tarefas');
+    if (resultados) {
+        resultados.style.display = 'none';
+    }
+    
+    // Filtrar a lista de tarefas para mostrar apenas a selecionada
+    filtrarTarefasPorNome(nome);
+}
+
+function filtrarTarefasPorNome(nome) {
+    console.log('🔍 Filtrando tarefas por nome:', nome);
+    
+    const tbody = document.querySelector('#lista-tarefas tbody');
+    if (!tbody) return;
+    
+    const linhas = tbody.querySelectorAll('tr');
+    let visiveis = 0;
+    
+    linhas.forEach(linha => {
+        const nomeTarefa = linha.querySelector('td:first-child')?.textContent?.toLowerCase() || '';
+        const nomeBusca = nome.toLowerCase();
+        
+        if (nomeTarefa.includes(nomeBusca)) {
+            linha.style.display = '';
+            visiveis++;
+        } else {
+            linha.style.display = 'none';
+        }
+    });
+    
+    console.log(`✅ Mostrando ${visiveis} tarefas de ${linhas.length}`);
 }
 
 // Funções de criação de tarefas
 function mostrarModalCriarTarefa() {
-    $('#modalCriarTarefa').modal('show');
+    const modal = document.getElementById('modalCriarTarefa');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        // Adicionar backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.id = 'modalCriarTarefa-backdrop';
+        document.body.appendChild(backdrop);
+    }
+}
+
+function fecharModalCriarTarefa() {
+    const modal = document.getElementById('modalCriarTarefa');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        // Remover backdrop
+        const backdrop = document.getElementById('modalCriarTarefa-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+    }
 }
 
 async function criarTarefa() {
@@ -931,48 +1231,85 @@ async function criarTarefa() {
     const tributacao = document.getElementById('tarefa-tributacao').value;
     const descricao = document.getElementById('tarefa-descricao').value;
     const comum = document.getElementById('tarefa-comum').checked;
-    const obrigatoria = document.getElementById('tarefa-obrigatoria').checked;
     
-    if (!nome || !tipo || !setor || !tributacao) {
-        showAlertModal('Erro', 'Preencha todos os campos obrigatórios', 'error');
+    console.log('📝 Dados do formulário:', {
+        nome, tipo, setor, tributacao, descricao, comum
+    });
+    
+    // Validação básica
+    if (!nome || !tipo || !setor) {
+        console.log('❌ Campos básicos obrigatórios faltando:', {
+            nome: !!nome, tipo: !!tipo, setor: !!setor
+        });
+        showAlertModal('Preencha nome, tipo e setor', 'error', 'Erro');
+        return;
+    }
+    
+    // Se não for tarefa comum, tributação é obrigatória
+    if (!comum && !tributacao) {
+        console.log('❌ Tributação obrigatória para tarefas específicas:', {
+            comum: comum, tributacao: !!tributacao
+        });
+        showAlertModal('Selecione uma tributação ou marque como Tarefa Comum', 'error', 'Erro');
         return;
     }
     
     try {
+        const dadosParaEnviar = {
+            nome: nome,
+            tipo: tipo,
+            setor_id: setor,
+            tributacao_id: tributacao,
+            descricao: descricao,
+            tarefa_comum: comum
+        };
+        
+        console.log('📤 Enviando dados para API:', dadosParaEnviar);
+        
         const response = await fetch('/tarefas-melhoradas/api/tarefas', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                nome: nome,
-                tipo: tipo,
-                setor_id: setor,
-                tributacao_id: tributacao,
-                descricao: descricao,
-                tarefa_comum: comum,
-                obrigatoria: obrigatoria
-            })
+            body: JSON.stringify(dadosParaEnviar)
         });
         
+        console.log('📡 Response status:', response.status);
+        
         const data = await response.json();
+        console.log('📊 Response data:', data);
         
         if (data.success) {
-            showAlertModal('Sucesso', 'Tarefa criada com sucesso!', 'success');
-            $('#modalCriarTarefa').modal('hide');
+            showAlertModal('Tarefa criada com sucesso!', 'success', 'Sucesso');
+            fecharModalCriarTarefa();
             carregarTarefas(); // Recarregar lista
             limparFormularioTarefa();
         } else {
-            showAlertModal('Erro', data.message, 'error');
+            console.error('❌ Erro na criação da tarefa:', data.message);
+            showAlertModal(`Erro ao criar tarefa: ${data.message || 'Erro desconhecido'}`, 'error', 'Erro');
         }
     } catch (error) {
-        console.error('Erro ao criar tarefa:', error);
-        showAlertModal('Erro', 'Erro ao criar tarefa', 'error');
+        console.error('❌ Erro na requisição:', error);
+        showAlertModal(`Erro de conexão: ${error.message || 'Erro desconhecido'}`, 'error', 'Erro');
     }
 }
 
 function limparFormularioTarefa() {
     document.getElementById('form-criar-tarefa').reset();
+    
+    // Reconfigurar o estado do checkbox "Tarefa Comum"
+    const checkbox = document.getElementById('tarefa-comum');
+    const selectTributacao = document.getElementById('tarefa-tributacao');
+    
+    if (checkbox && selectTributacao) {
+        if (checkbox.checked) {
+            selectTributacao.disabled = true;
+            selectTributacao.style.opacity = '0.5';
+        } else {
+            selectTributacao.disabled = false;
+            selectTributacao.style.opacity = '1';
+        }
+    }
 }
 
 function editarTarefa(id) {
@@ -993,10 +1330,10 @@ function excluirTarefa(id) {
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlertModal('Sucesso', 'Tarefa excluída com sucesso!', 'success');
+                    showAlertModal('Tarefa excluída com sucesso!', 'success', 'Sucesso');
                     carregarTarefas();
                 } else {
-                    showAlertModal('Erro', data.message, 'error');
+                    showAlertModal(data.message, 'error', 'Erro');
                 }
             } catch (error) {
                 console.error('Erro ao excluir tarefa:', error);
@@ -1058,12 +1395,17 @@ async function carregarUsuarios() {
         
         if (data.success) {
             const select = document.getElementById('responsavel-select');
-            data.usuarios.forEach(usuario => {
-                const option = document.createElement('option');
-                option.value = usuario.id;
-                option.textContent = usuario.nome;
-                select.appendChild(option);
-            });
+            if (select) {
+                data.usuarios.forEach(usuario => {
+                    const option = document.createElement('option');
+                    option.value = usuario.id;
+                    option.textContent = usuario.nome;
+                    select.appendChild(option);
+                });
+                console.log('✅ Usuários carregados no select');
+            } else {
+                console.log('⚠️ Select responsavel-select não encontrado');
+            }
         }
     } catch (error) {
         console.error('❌ Erro ao carregar usuários:', error);
@@ -1091,11 +1433,11 @@ async function salvarResponsavelPadrao(event) {
         const data = await response.json();
         
         if (data.success) {
-            showAlertModal('Sucesso', data.message, 'success');
+            showAlertModal(data.message, 'success', 'Sucesso');
             document.getElementById('responsavel-form').reset();
             carregarResponsaveis();
         } else {
-            showAlertModal('Erro', data.message, 'error');
+            showAlertModal(data.message, 'error', 'Erro');
         }
     } catch (error) {
         console.error('❌ Erro ao salvar responsável:', error);
@@ -1132,11 +1474,11 @@ document.getElementById('confirmar-alteracao').addEventListener('click', async f
         const data = await response.json();
         
         if (data.success) {
-            showAlertModal('Sucesso', data.message, 'success');
-            $('#modalAlterarTributacao').modal('hide');
+            showAlertModal(data.message, 'success', 'Sucesso');
+            fecharModalAlterarTributacao();
             carregarEmpresas(); // Recarregar dados
         } else {
-            showAlertModal('Erro', data.message, 'error');
+            showAlertModal(data.message, 'error', 'Erro');
         }
     } catch (error) {
         console.error('❌ Erro ao confirmar alteração:', error);
@@ -1144,11 +1486,626 @@ document.getElementById('confirmar-alteracao').addEventListener('click', async f
     }
 });
 
+// Função de teste para abertura do modal
+function testarAberturaModal() {
+    console.log('🧪 TESTE - Tentando abrir modal...');
+    
+    // Verificar se elementos existem
+    const modal = document.getElementById('modalVincularResponsavel');
+    const empresaInput = document.getElementById('empresa-search-vincular');
+    const resultsDiv = document.getElementById('empresa-results-vincular');
+    
+    console.log('🔍 Elementos encontrados:');
+    console.log('📱 Modal:', modal ? 'SIM' : 'NÃO');
+    console.log('🔍 Input empresa:', empresaInput ? 'SIM' : 'NÃO');
+    console.log('📊 Results div:', resultsDiv ? 'SIM' : 'NÃO');
+    
+    if (!modal) {
+        console.error('❌ Modal não encontrado! Verificando DOM...');
+        const allModals = document.querySelectorAll('.modal');
+        console.log('📱 Todos os modais encontrados:', allModals.length);
+        allModals.forEach((m, i) => {
+            console.log(`📱 Modal ${i}:`, m.id, m.className);
+        });
+        return;
+    }
+    
+    if (!empresaInput) {
+        console.error('❌ Input empresa não encontrado!');
+        return;
+    }
+    
+    if (!resultsDiv) {
+        console.error('❌ Results div não encontrado!');
+        return;
+    }
+    
+    console.log('✅ Todos os elementos encontrados, abrindo modal...');
+    
+    // Teste direto de busca
+    console.log('🧪 Testando busca direta...');
+    const empresasTeste = [
+        { id: 1, nome: 'Empresa Alfa', codigo: 'ALFA' },
+        { id: 2, nome: 'AL Comercio Varejista', codigo: '667' }
+    ];
+    
+    // Reutilizar resultsDiv já declarado
+    if (resultsDiv) {
+        resultsDiv.innerHTML = empresasTeste.map(empresa => `
+            <div class="search-item-standard" onclick="selecionarEmpresaVinculacao(${empresa.id}, '${empresa.nome}')">
+                <div class="search-item-primary-standard">${empresa.nome}</div>
+                <div class="search-item-secondary-standard">${empresa.codigo || ''}</div>
+            </div>
+        `).join('');
+        
+        console.log('🎯 HTML criado:', resultsDiv.innerHTML);
+        console.log('🎯 Exibindo results div...');
+        resultsDiv.classList.add('show');
+        resultsDiv.style.display = 'block';
+        resultsDiv.style.visibility = 'visible';
+        resultsDiv.style.opacity = '1';
+        
+        console.log('📊 Results display:', resultsDiv.style.display);
+        console.log('📊 Results classes:', resultsDiv.className);
+        console.log('📊 Results computed display:', window.getComputedStyle(resultsDiv).display);
+        console.log('📊 Results computed visibility:', window.getComputedStyle(resultsDiv).visibility);
+        console.log('📊 Results computed opacity:', window.getComputedStyle(resultsDiv).opacity);
+        console.log('📊 Results computed z-index:', window.getComputedStyle(resultsDiv).zIndex);
+    }
+    
+    mostrarModalVincularResponsavel();
+}
+
 // Funções de vinculação de responsáveis
 function mostrarModalVincularResponsavel() {
-    $('#modalVincularResponsavel').modal('show');
-    carregarTarefasModal();
-    configurarBuscaResponsavelModal();
+    console.log('🚀 Abrindo modal de vinculação...');
+    const modal = document.getElementById('modalVincularResponsavel');
+    console.log('📱 Modal encontrado:', modal);
+    
+    if (modal) {
+        // Remover backdrop existente
+        const existingBackdrop = document.getElementById('modalVincularResponsavel-backdrop');
+        if (existingBackdrop) {
+            existingBackdrop.remove();
+        }
+        
+        // Adicionar backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.id = 'modalVincularResponsavel-backdrop';
+        backdrop.style.zIndex = '1040';
+        document.body.appendChild(backdrop);
+        
+        // Mostrar modal
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.zIndex = '1050';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        
+        console.log('✅ Modal aberto');
+        
+        // Configurar sistema de busca
+        setTimeout(() => {
+            configurarBuscaVinculacao();
+            debugModalVinculacao();
+        }, 100);
+    } else {
+        console.error('❌ Modal não encontrado!');
+    }
+}
+
+function fecharModalVincularResponsavel() {
+    console.log('🚪 Fechando modal de vinculação...');
+    const modal = document.getElementById('modalVincularResponsavel');
+    
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        
+        // Remover backdrop
+        const backdrop = document.getElementById('modalVincularResponsavel-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+        
+        limparModalVinculacao();
+        console.log('✅ Modal fechado');
+    }
+}
+
+// Função de debug para o modal de vinculação
+function debugModalVinculacao() {
+    console.log('🔍 DEBUG - Modal de Vinculação:');
+    
+    const modal = document.getElementById('modalVincularResponsavel');
+    const empresaInput = document.getElementById('empresa-search-vincular');
+    const resultsDiv = document.getElementById('empresa-results-vincular');
+    
+    console.log('📱 Modal:', modal);
+    console.log('📱 Modal display:', modal ? modal.style.display : 'N/A');
+    console.log('📱 Modal classes:', modal ? modal.className : 'N/A');
+    
+    console.log('🔍 Input empresa:', empresaInput);
+    console.log('🔍 Input value:', empresaInput ? empresaInput.value : 'N/A');
+    
+    console.log('📊 Results div:', resultsDiv);
+    console.log('📊 Results display:', resultsDiv ? resultsDiv.style.display : 'N/A');
+    console.log('📊 Results classes:', resultsDiv ? resultsDiv.className : 'N/A');
+    
+    // Teste de busca automática
+    if (empresaInput && resultsDiv) {
+        console.log('🧪 Testando busca automática...');
+        empresaInput.value = 'AL';
+        empresaInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+}
+
+// Configurar sistema de busca para vinculação
+function configurarBuscaVinculacao() {
+    console.log('🔧 Configurando busca de vinculação...');
+    
+    // Configurar busca de empresa
+    const empresaInput = document.getElementById('empresa-search-vincular');
+    console.log('📝 Input empresa encontrado:', empresaInput);
+    
+    if (empresaInput) {
+        // Remover event listeners existentes
+        empresaInput.removeEventListener('input', empresaInput._inputHandler);
+        
+        // Criar novo handler
+        empresaInput._inputHandler = function() {
+            const query = this.value.trim();
+            console.log('🔍 Buscando empresas com query:', query);
+            if (query.length >= 2) {
+                buscarEmpresasVinculacao(query);
+            } else {
+                const resultsDiv = document.getElementById('empresa-results-vincular');
+                if (resultsDiv) {
+                    resultsDiv.classList.remove('show');
+                    resultsDiv.style.display = 'none';
+                }
+            }
+        };
+        
+        empresaInput.addEventListener('input', empresaInput._inputHandler);
+        console.log('✅ Event listener configurado para empresa');
+    } else {
+        console.error('❌ Input empresa não encontrado!');
+    }
+
+    // Configurar busca de tarefas
+    const tarefaInput = document.getElementById('tarefa-search-vincular');
+    if (tarefaInput) {
+        tarefaInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            const empresaId = document.getElementById('empresa_id_vincular').value;
+            if (query.length >= 2 && empresaId) {
+                buscarTarefasVinculacao(query, empresaId);
+            } else {
+                document.getElementById('tarefa-results-vincular').style.display = 'none';
+            }
+        });
+    }
+
+    // Configurar busca de responsável
+    const responsavelInput = document.getElementById('responsavel-search-vincular');
+    if (responsavelInput) {
+        responsavelInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            if (query.length >= 2) {
+                buscarResponsaveisVinculacao(query);
+            } else {
+                document.getElementById('responsavel-results-vincular').style.display = 'none';
+            }
+        });
+    }
+}
+
+// Buscar empresas para vinculação
+function buscarEmpresasVinculacao(query) {
+    console.log('🌐 Fazendo requisição para empresas com query:', query);
+    
+    const url = `/tarefas-melhoradas/api/empresas?search=${encodeURIComponent(query)}`;
+    console.log('🔗 URL:', url);
+    
+    fetch(url, {
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => {
+            console.log('📡 Empresas response status:', response.status);
+            console.log('📡 Empresas response headers:', response.headers);
+            return response.json();
+        })
+        .then(data => {
+            console.log('📊 Empresas data recebida:', data);
+            console.log('📊 Empresas encontradas:', data.empresas ? data.empresas.length : 0);
+            
+            if (data.empresas) {
+                mostrarResultadosEmpresasVinculacao(data.empresas);
+            } else {
+                console.warn('⚠️ Nenhuma empresa encontrada nos dados');
+                mostrarResultadosEmpresasVinculacao([]);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erro ao buscar empresas:', error);
+            console.error('❌ Stack trace:', error.stack);
+        });
+}
+
+// Mostrar resultados de empresas para vinculação
+function mostrarResultadosEmpresasVinculacao(empresas) {
+    console.log('🎯 Mostrando resultados de empresas:', empresas);
+    
+    const resultsDiv = document.getElementById('empresa-results-vincular');
+    console.log('🎯 Results div encontrado:', resultsDiv);
+    
+    if (!resultsDiv) {
+        console.error('❌ Results div não encontrado!');
+        return;
+    }
+
+    if (empresas.length === 0) {
+        console.log('📝 Nenhuma empresa encontrada, mostrando mensagem');
+        resultsDiv.innerHTML = '<div class="search-item-standard">Nenhuma empresa encontrada</div>';
+    } else {
+        console.log('📝 Criando HTML para', empresas.length, 'empresas');
+        resultsDiv.innerHTML = empresas.map(empresa => `
+            <div class="search-item-standard" onclick="selecionarEmpresaVinculacao(${empresa.id}, '${empresa.nome}')">
+                <div class="search-item-primary-standard">${empresa.nome}</div>
+                <div class="search-item-secondary-standard">${empresa.codigo || ''}</div>
+            </div>
+        `).join('');
+    }
+    
+    console.log('🎯 Exibindo results div');
+    resultsDiv.classList.add('show');
+    resultsDiv.style.display = 'block';
+    resultsDiv.style.visibility = 'visible';
+    resultsDiv.style.opacity = '1';
+    console.log('🎯 Results div display:', resultsDiv.style.display);
+    console.log('🎯 Results div classes:', resultsDiv.className);
+    console.log('🎯 Results div visibility:', window.getComputedStyle(resultsDiv).visibility);
+    console.log('🎯 Results div computed display:', window.getComputedStyle(resultsDiv).display);
+}
+
+// Selecionar empresa para vinculação
+function selecionarEmpresaVinculacao(id, nome) {
+    const hiddenInput = document.getElementById('empresa_id_vincular');
+    const selectedDiv = document.getElementById('empresa-selected-vincular');
+    const input = document.getElementById('empresa-search-vincular');
+    const resultsDiv = document.getElementById('empresa-results-vincular');
+
+    // Atualizar campos
+    hiddenInput.value = id;
+    input.value = '';
+    resultsDiv.classList.remove('show');
+    resultsDiv.style.display = 'none';
+    
+    // Atualizar visualização
+    selectedDiv.innerHTML = `
+        <div class="selected-item-standard">
+            <span class="selected-item-text-standard">${nome}</span>
+            <button type="button" class="selected-item-remove-standard" onclick="removerEmpresaVinculacao()">&times;</button>
+        </div>
+    `;
+    
+    // Mostrar passo de tarefas
+    document.getElementById('passo-tarefas').style.display = 'block';
+    atualizarBotaoConfirmar();
+}
+
+// Remover empresa selecionada
+function removerEmpresaVinculacao() {
+    document.getElementById('empresa_id_vincular').value = '';
+    document.getElementById('empresa-selected-vincular').innerHTML = `
+        <div class="selected-item-standard">
+            <span class="selected-item-text-standard">Nenhuma empresa selecionada</span>
+        </div>
+    `;
+    document.getElementById('passo-tarefas').style.display = 'none';
+    document.getElementById('passo-responsavel').style.display = 'none';
+    atualizarBotaoConfirmar();
+}
+
+// Buscar tarefas para vinculação (filtrando por empresa e já vinculadas)
+function buscarTarefasVinculacao(query, empresaId) {
+    fetch(`/tarefas-melhoradas/api/tarefas/buscar?q=${encodeURIComponent(query)}&empresa_id=${empresaId}`, {
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => {
+            console.log('Tarefas vinculacao response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Tarefas vinculacao data:', data);
+            if (data.success && data.tarefas) {
+                mostrarResultadosTarefasVinculacao(data.tarefas);
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao buscar tarefas:', error);
+        });
+}
+
+// Mostrar resultados de tarefas para vinculação
+function mostrarResultadosTarefasVinculacao(tarefas) {
+    const resultsDiv = document.getElementById('tarefa-results-vincular');
+    if (!resultsDiv) return;
+
+    if (tarefas.length === 0) {
+        resultsDiv.innerHTML = '<div class="search-item-standard">Nenhuma tarefa encontrada</div>';
+    } else {
+        resultsDiv.innerHTML = tarefas.map(tarefa => `
+            <div class="search-item-standard" onclick="selecionarTarefaVinculacao(${tarefa.id}, '${tarefa.nome}')">
+                <div class="search-item-primary-standard">${tarefa.nome}</div>
+                <div class="search-item-secondary-standard">${tarefa.tipo} - ${tarefa.setor_nome}</div>
+            </div>
+        `).join('');
+    }
+    
+    resultsDiv.style.display = 'block';
+}
+
+// Selecionar tarefa para vinculação
+function selecionarTarefaVinculacao(id, nome) {
+    const hiddenInput = document.getElementById('tarefa_ids_vincular');
+    const selectedDiv = document.getElementById('tarefa-selected-vincular');
+    const input = document.getElementById('tarefa-search-vincular');
+    const resultsDiv = document.getElementById('tarefa-results-vincular');
+
+    // Obter tarefas já selecionadas
+    let selectedIds = [];
+    if (hiddenInput.value) {
+        selectedIds = hiddenInput.value.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    }
+
+    // Adicionar se não estiver já selecionada
+    if (!selectedIds.includes(id)) {
+        selectedIds.push(id);
+        hiddenInput.value = selectedIds.join(',');
+
+        // Atualizar visualização
+        const newItem = document.createElement('div');
+        newItem.className = 'selected-item-standard';
+        newItem.innerHTML = `
+            <span class="selected-item-text-standard">${nome}</span>
+            <button type="button" class="selected-item-remove-standard" onclick="removerTarefaVinculacao(${id})">&times;</button>
+        `;
+        
+        if (selectedDiv.children.length === 1 && selectedDiv.children[0].textContent.includes('Nenhuma')) {
+            selectedDiv.innerHTML = '';
+        }
+        selectedDiv.appendChild(newItem);
+    }
+
+    input.value = '';
+    resultsDiv.style.display = 'none';
+    
+    // Mostrar passo de responsável
+    document.getElementById('passo-responsavel').style.display = 'block';
+    atualizarBotaoConfirmar();
+}
+
+// Remover tarefa selecionada
+function removerTarefaVinculacao(id) {
+    const hiddenInput = document.getElementById('tarefa_ids_vincular');
+    let selectedIds = [];
+    if (hiddenInput.value) {
+        selectedIds = hiddenInput.value.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    }
+    
+    selectedIds = selectedIds.filter(taskId => taskId !== id);
+    hiddenInput.value = selectedIds.join(',');
+    
+    // Remover visualmente
+    const selectedDiv = document.getElementById('tarefa-selected-vincular');
+    const items = selectedDiv.querySelectorAll('.selected-item');
+    items.forEach(item => {
+        if (item.querySelector('button').onclick.toString().includes(id)) {
+            item.remove();
+        }
+    });
+    
+    if (selectedIds.length === 0) {
+        selectedDiv.innerHTML = `
+            <div class="selected-item-standard">
+                <span class="selected-item-text-standard">Nenhuma tarefa selecionada</span>
+            </div>
+        `;
+        document.getElementById('passo-responsavel').style.display = 'none';
+    }
+    
+    atualizarBotaoConfirmar();
+}
+
+// Buscar responsáveis para vinculação
+function buscarResponsaveisVinculacao(query) {
+    fetch(`/api/usuarios?search=${encodeURIComponent(query)}`, {
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => {
+            console.log('Responsaveis response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Responsaveis data:', data);
+            if (data.success && data.usuarios) {
+                // Filtrar apenas colaboradores (usuários normais)
+                const colaboradores = data.usuarios.filter(user => user.tipo === 'normal');
+                mostrarResultadosResponsaveisVinculacao(colaboradores);
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao buscar responsáveis:', error);
+        });
+}
+
+// Mostrar resultados de responsáveis para vinculação
+function mostrarResultadosResponsaveisVinculacao(responsaveis) {
+    const resultsDiv = document.getElementById('responsavel-results-vincular');
+    if (!resultsDiv) return;
+
+    if (responsaveis.length === 0) {
+        resultsDiv.innerHTML = '<div class="search-item-standard">Nenhum responsável encontrado</div>';
+    } else {
+        resultsDiv.innerHTML = responsaveis.map(responsavel => `
+            <div class="search-item-standard" onclick="selecionarResponsavelVinculacao(${responsavel.id}, '${responsavel.nome}')">
+                <div class="search-item-primary-standard">${responsavel.nome}</div>
+                <div class="search-item-secondary-standard">${responsavel.tipo || 'Colaborador'}</div>
+            </div>
+        `).join('');
+    }
+    
+    resultsDiv.style.display = 'block';
+}
+
+// Selecionar responsável para vinculação
+function selecionarResponsavelVinculacao(id, nome) {
+    const hiddenInput = document.getElementById('responsavel_id_vincular');
+    const selectedDiv = document.getElementById('responsavel-selected-vincular');
+    const input = document.getElementById('responsavel-search-vincular');
+    const resultsDiv = document.getElementById('responsavel-results-vincular');
+
+    // Atualizar campos
+    hiddenInput.value = id;
+    input.value = '';
+    resultsDiv.style.display = 'none';
+    
+    // Atualizar visualização
+    selectedDiv.innerHTML = `
+        <div class="selected-item-standard">
+            <span class="selected-item-text-standard">${nome}</span>
+            <button type="button" class="selected-item-remove-standard" onclick="removerResponsavelVinculacao()">&times;</button>
+        </div>
+    `;
+    
+    atualizarBotaoConfirmar();
+}
+
+// Remover responsável selecionado
+function removerResponsavelVinculacao() {
+    document.getElementById('responsavel_id_vincular').value = '';
+    document.getElementById('responsavel-selected-vincular').innerHTML = `
+        <div class="selected-item-standard">
+            <span class="selected-item-text-standard">Nenhum responsável selecionado</span>
+        </div>
+    `;
+    atualizarBotaoConfirmar();
+}
+
+// Atualizar estado do botão confirmar
+function atualizarBotaoConfirmar() {
+    const empresaId = document.getElementById('empresa_id_vincular').value;
+    const tarefaIds = document.getElementById('tarefa_ids_vincular').value;
+    const responsavelId = document.getElementById('responsavel_id_vincular').value;
+    const btn = document.getElementById('btnConfirmarVinculacao');
+    
+    if (empresaId && tarefaIds && responsavelId) {
+        btn.disabled = false;
+    } else {
+        btn.disabled = true;
+    }
+}
+
+// Limpar modal de vinculação
+function limparModalVinculacao() {
+    document.getElementById('empresa_id_vincular').value = '';
+    document.getElementById('tarefa_ids_vincular').value = '';
+    document.getElementById('responsavel_id_vincular').value = '';
+    
+    document.getElementById('empresa-selected-vincular').innerHTML = `
+        <div class="selected-item-standard">
+            <span class="selected-item-text-standard">Nenhuma empresa selecionada</span>
+        </div>
+    `;
+    
+    document.getElementById('tarefa-selected-vincular').innerHTML = `
+        <div class="selected-item-standard">
+            <span class="selected-item-text-standard">Nenhuma tarefa selecionada</span>
+        </div>
+    `;
+    
+    document.getElementById('responsavel-selected-vincular').innerHTML = `
+        <div class="selected-item-standard">
+            <span class="selected-item-text-standard">Nenhum responsável selecionado</span>
+        </div>
+    `;
+    
+    document.getElementById('passo-tarefas').style.display = 'none';
+    document.getElementById('passo-responsavel').style.display = 'none';
+    document.getElementById('btnConfirmarVinculacao').disabled = true;
+}
+
+function fecharModalAlterarTributacao() {
+    const modal = document.getElementById('modalAlterarTributacao');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        // Remover backdrop
+        const backdrop = document.getElementById('modalAlterarTributacao-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+    }
+}
+
+function fecharModalVerEmpresa() {
+    const modal = document.getElementById('modalVerEmpresa');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        // Remover backdrop
+        const backdrop = document.getElementById('modalVerEmpresa-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+    }
+}
+
+function mostrarModalVerEmpresa() {
+    const modal = document.getElementById('modalVerEmpresa');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        // Adicionar backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.id = 'modalVerEmpresa-backdrop';
+        document.body.appendChild(backdrop);
+    }
+}
+
+function mostrarModalAlterarTributacao() {
+    const modal = document.getElementById('modalAlterarTributacao');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        // Adicionar backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.id = 'modalAlterarTributacao-backdrop';
+        document.body.appendChild(backdrop);
+    }
 }
 
 function configurarBuscaResponsavelModal() {
@@ -1258,20 +2215,8 @@ function mostrarTarefasModalBackend() {
     
     let html = '';
     
-    // Usar dados do backend se disponíveis
-    {% if tarefas_filtradas %}
-    {% for tarefa in tarefas_filtradas %}
-    html += `
-        <div class="task-item">
-            <input type="checkbox" class="task-checkbox" id="task-{{ tarefa.id }}" value="{{ tarefa.id }}">
-            <div class="task-info">
-                <strong>{{ tarefa.nome }}</strong>
-                <div class="task-type">{{ tarefa.tipo }} - {{ tarefa.setor.nome if tarefa.setor else 'N/A' }}</div>
-            </div>
-        </div>
-    `;
-    {% endfor %}
-    {% endif %}
+    // Os dados serão carregados via API
+    // Código Jinja2 removido para evitar conflitos JavaScript
     
     container.innerHTML = html;
 }
@@ -1307,12 +2252,11 @@ async function confirmarVinculacao() {
         const data = await response.json();
         
         if (data.success) {
-            showAlertModal('Sucesso', 'Responsável vinculado com sucesso!', 'success');
-            $('#modalVincularResponsavel').modal('hide');
+            showAlertModal('Responsável vinculado com sucesso!', 'success', 'Sucesso');
+            fecharModalVincularResponsavel();
             carregarResponsaveis();
-            limparModalVinculacao();
         } else {
-            showAlertModal('Erro', data.message, 'error');
+            showAlertModal(data.message, 'error', 'Erro');
         }
     } catch (error) {
         console.error('Erro ao vincular responsável:', error);
@@ -1335,15 +2279,15 @@ function filtrarResponsaveis() {
 }
 </script>
 
-<!-- Modal para Criar Tarefa -->
-<div class="modal fade" id="modalCriarTarefa" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+<!-- Modal para Criar Tarefa (VERSÃO NOVA E LIMPA) -->
+<div class="modal modal-standard" id="modalCriarTarefa" tabindex="-1" style="display: none;">
+  <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="fas fa-plus"></i> Nova Tarefa
         </h5>
-        <button type="button" class="close" data-dismiss="modal">
+        <button type="button" class="close" onclick="fecharModalCriarTarefa()">
           <span>&times;</span>
         </button>
       </div>
@@ -1409,19 +2353,11 @@ function filtrarResponsaveis() {
                 </label>
               </div>
             </div>
-            <div class="col-md-6">
-              <div class="form-check">
-                <input type="checkbox" id="tarefa-obrigatoria" class="form-check-input" checked>
-                <label for="tarefa-obrigatoria" class="form-check-label">
-                  Obrigatória
-                </label>
-              </div>
-            </div>
           </div>
         </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-secondary" onclick="fecharModalCriarTarefa()">Cancelar</button>
         <button type="button" class="btn btn-success" onclick="criarTarefa()">
           <i class="fas fa-save"></i> Criar Tarefa
         </button>
@@ -1431,48 +2367,66 @@ function filtrarResponsaveis() {
 </div>
 
 <!-- Modal para Vincular Responsável -->
-<div class="modal fade" id="modalVincularResponsavel" tabindex="-1">
+<div class="modal modal-standard" id="modalVincularResponsavel" tabindex="-1" style="display: none;">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">
           <i class="fas fa-link"></i> Vincular Responsável
         </h5>
-        <button type="button" class="close" data-dismiss="modal">
+        <button type="button" class="btn-close" onclick="fecharModalVincularResponsavel()">
           <span>&times;</span>
         </button>
       </div>
       <div class="modal-body">
-        <div class="row">
-          <div class="col-md-6">
-            <div class="form-group">
-              <label>Buscar Responsável:</label>
-              <div class="search-container">
-                <input type="text" id="busca-responsavel-modal" class="form-control" placeholder="Digite o nome do responsável...">
-                <div id="resultados-busca-responsavel-modal" class="search-results"></div>
-              </div>
-            </div>
-            <div id="responsavel-selecionado" class="hidden">
-              <div class="alert alert-info">
-                <strong>Responsável Selecionado:</strong>
-                <div id="responsavel-info"></div>
+        <!-- Passo 1: Selecionar Empresa -->
+        <div class="mb-4">
+          <h6><i class="fas fa-building"></i> Passo 1: Selecionar Empresa</h6>
+          <div class="search-container">
+            <input type="text" id="empresa-search-vincular" class="search-input-standard" placeholder="Digite para buscar empresa..." autocomplete="off">
+            <div id="empresa-results-vincular" class="search-results-standard" style="display: none;"></div>
+            <input type="hidden" id="empresa_id_vincular" name="empresa_id" value="">
+            <div id="empresa-selected-vincular" class="selected-items-container-standard">
+              <div class="selected-item-standard">
+                <span class="selected-item-text-standard">Nenhuma empresa selecionada</span>
               </div>
             </div>
           </div>
-          
-          <div class="col-md-6">
-            <div class="form-group">
-              <label>Selecionar Tarefas:</label>
-              <div id="lista-tarefas-modal" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px;">
-                <!-- Tarefas serão carregadas aqui -->
+        </div>
+
+        <!-- Passo 2: Selecionar Tarefas (aparece após selecionar empresa) -->
+        <div class="mb-4" id="passo-tarefas" style="display: none;">
+          <h6><i class="fas fa-tasks"></i> Passo 2: Selecionar Tarefas</h6>
+          <div class="search-container">
+            <input type="text" id="tarefa-search-vincular" class="search-input-standard" placeholder="Digite para buscar tarefa..." autocomplete="off">
+            <div id="tarefa-results-vincular" class="search-results-standard" style="display: none;"></div>
+            <input type="hidden" id="tarefa_ids_vincular" name="tarefa_ids" value="">
+            <div id="tarefa-selected-vincular" class="selected-items-container-standard">
+              <div class="selected-item-standard">
+                <span class="selected-item-text-standard">Nenhuma tarefa selecionada</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Passo 3: Selecionar Responsável (aparece após selecionar tarefas) -->
+        <div class="mb-4" id="passo-responsavel" style="display: none;">
+          <h6><i class="fas fa-user"></i> Passo 3: Selecionar Responsável</h6>
+          <div class="search-container">
+            <input type="text" id="responsavel-search-vincular" class="search-input-standard" placeholder="Digite para buscar responsável..." autocomplete="off">
+            <div id="responsavel-results-vincular" class="search-results-standard" style="display: none;"></div>
+            <input type="hidden" id="responsavel_id_vincular" name="responsavel_id" value="">
+            <div id="responsavel-selected-vincular" class="selected-items-container-standard">
+              <div class="selected-item-standard">
+                <span class="selected-item-text-standard">Nenhum responsável selecionado</span>
               </div>
             </div>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="confirmarVinculacao()">
+        <button type="button" class="btn btn-secondary" onclick="fecharModalVincularResponsavel()">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="confirmarVinculacao()" id="btnConfirmarVinculacao" disabled>
           <i class="fas fa-link"></i> Vincular
         </button>
       </div>

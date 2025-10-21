@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Tarefas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1f3558 0%, #243b69 100%);
+            color: #f7fafc;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #38507f;
+        }
+        
+        .header h1 {
+            color: #f7fafc;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .header p {
+            color: #b8c2d3;
+            font-size: 16px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-success {
+            background-color: #4bb543;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #3a9d35;
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary {
+            background-color: #9eb6d8;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #4f6b99;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background-color: #aeb8c7;
+            color: white;
+        }
+        
+        .card {
+            background-color: #243b69;
+            border: 1px solid #38507f;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card h3 {
+            margin-bottom: 20px;
+            color: #f7fafc;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background-color: #2a4477;
+            color: #f7fafc;
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #38507f;
+            font-weight: 600;
+        }
+        
+        td {
+            background-color: #243b69;
+            color: #f7fafc;
+            padding: 12px;
+            border: 1px solid #38507f;
+        }
+        
+        tr:hover td {
+            background-color: #2f4a82;
+        }
+        
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-info {
+            background-color: #9eb6d8;
+            color: white;
+        }
+        
+        /* MODAL - ESTILO SIMPLES E FUNCIONAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 999999;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex !important;
+        }
+        
+        .modal-content {
+            background-color: #1f3558;
+            border: 2px solid #9eb6d8;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            background-color: #243b69;
+            padding: 20px;
+            border-bottom: 1px solid #38507f;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            color: #f7fafc;
+            margin: 0;
+        }
+        
+        .btn-close {
+            background: none;
+            border: none;
+            color: #f7fafc;
+            font-size: 28px;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        
+        .btn-close:hover {
+            background-color: #2f4a82;
+            border-radius: 4px;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .modal-footer {
+            background-color: #243b69;
+            padding: 15px 20px;
+            border-top: 1px solid #38507f;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            color: #f7fafc;
+            font-weight: 500;
+            margin-bottom: 6px;
+            display: block;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            background-color: #243b69;
+            color: #f7fafc;
+            border: 1px solid #38507f;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #9eb6d8;
+            box-shadow: 0 0 0 2px rgba(158, 182, 216, 0.2);
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-tasks"></i> Gerenciamento de Tarefas</h1>
+            <p>Sistema LIMPO e FUNCIONAL - Teste Real</p>
+            <p style="font-size: 12px; color: #aeb8c7;">Usuário: {{ usuario.nome }} ({{ usuario.tipo }})</p>
+        </div>
+
+        <!-- Botões -->
+        <div class="button-group">
+            <button class="btn btn-success" onclick="abrirModalTarefa()">
+                <i class="fas fa-plus"></i> Nova Tarefa
+            </button>
+            <button class="btn btn-primary" onclick="abrirModalVincular()">
+                <i class="fas fa-link"></i> Vincular Responsável
+            </button>
+            <a href="/gerenciamento/" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+        </div>
+
+        <!-- Lista de Tarefas -->
+        <div class="card">
+            <h3><i class="fas fa-list"></i> Tarefas do Setor</h3>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Tipo</th>
+                        <th>Setor</th>
+                    </tr>
+                </thead>
+                <tbody id="listaTarefas">
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: 30px;">
+                            <i class="fas fa-spinner fa-spin"></i> Carregando tarefas...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- MODAL CRIAR TAREFA (100% INDEPENDENTE) -->
+    <div id="modalTarefa" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus"></i> Nova Tarefa</h3>
+                <button class="btn-close" onclick="fecharModalTarefa()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nome da Tarefa *</label>
+                    <input type="text" id="tarefaNome" placeholder="Ex: Apuração ICMS">
+                </div>
+                
+                <div class="form-group">
+                    <label>Tipo *</label>
+                    <select id="tarefaTipo">
+                        <option value="">Selecione</option>
+                        <option value="Mensal">Mensal</option>
+                        <option value="Anual">Anual</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Setor *</label>
+                    <select id="tarefaSetor">
+                        <option value="">Selecione</option>
+                        {% for setor in setores %}
+                        <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Tributação</label>
+                    <select id="tarefaTributacao">
+                        <option value="">Deixe vazio para tarefa comum</option>
+                        <option value="1">Simples Nacional</option>
+                        <option value="2">Regime Normal</option>
+                    </select>
+                    <small style="color: #b8c2d3; font-size: 12px;">Deixe vazio se a tarefa aplicar a ambas tributações</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea id="tarefaDescricao" rows="3" placeholder="Descrição opcional..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fecharModalTarefa()">Cancelar</button>
+                <button class="btn btn-success" onclick="salvarTarefa()">
+                    <i class="fas fa-save"></i> Criar Tarefa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL VINCULAR (100% INDEPENDENTE) -->
+    <div id="modalVincular" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-link"></i> Vincular Responsável</h3>
+                <button class="btn-close" onclick="fecharModalVincular()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 20px; color: #b8c2d3;">
+                    <i class="fas fa-info-circle"></i> Vincule responsáveis às tarefas de uma empresa específica
+                </p>
+                
+                <div class="form-group">
+                    <label>1. Buscar Empresa</label>
+                    <input type="text" id="buscaEmpresa" placeholder="Digite o nome da empresa..." onkeyup="buscarEmpresas(this.value)">
+                    <div id="resultadosEmpresas" style="margin-top: 10px;">
+                        <!-- Resultados aparecerão aqui -->
+                    </div>
+                </div>
+                
+                <div id="empresaSelecionadaDiv" style="display: none; margin: 15px 0; padding: 10px; background-color: #2f4a82; border-radius: 4px;">
+                    Empresa selecionada: <strong id="empresaSelecionadaNome"></strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fecharModalVincular()">Cancelar</button>
+                <button class="btn btn-primary" onclick="salvarVinculacao()">
+                    <i class="fas fa-save"></i> Vincular
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('✅ PÁGINA STANDALONE CARREGADA');
+        
+        // ===== MODAL TAREFA =====
+        function abrirModalTarefa() {
+            console.log('📝 Abrindo modal tarefa');
+            const modal = document.getElementById('modalTarefa');
+            console.log('Modal encontrado:', modal);
+            if (modal) {
+                modal.classList.add('active');
+                console.log('✅ Modal ativado');
+            }
+        }
+        
+        function fecharModalTarefa() {
+            console.log('🚪 Fechando modal tarefa');
+            document.getElementById('modalTarefa').classList.remove('active');
+        }
+        
+        function salvarTarefa() {
+            console.log('💾 Salvando tarefa');
+            
+            const nome = document.getElementById('tarefaNome').value;
+            const tipo = document.getElementById('tarefaTipo').value;
+            const setor = document.getElementById('tarefaSetor').value;
+            const tributacao = document.getElementById('tarefaTributacao').value;
+            const descricao = document.getElementById('tarefaDescricao').value;
+            
+            if (!nome || !tipo || !setor) {
+                alert('Preencha os campos obrigatórios: Nome, Tipo e Setor');
+                return;
+            }
+            
+            const dados = {
+                nome: nome,
+                tipo: tipo,
+                setor_id: parseInt(setor),
+                tributacao_id: tributacao ? parseInt(tributacao) : null,
+                descricao: descricao,
+                tarefa_comum: tributacao ? false : true  // Se não selecionou tributação, é tarefa comum
+            };
+            
+            console.log('📤 Enviando dados:', dados);
+            
+            fetch('/tarefas-melhoradas/api/tarefas', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            })
+            .then(r => r.json())
+            .then(data => {
+                console.log('📥 Resposta:', data);
+                if (data.success) {
+                    alert('✅ Tarefa criada com sucesso!');
+                    fecharModalTarefa();
+                    // Limpar campos
+                    document.getElementById('tarefaNome').value = '';
+                    document.getElementById('tarefaTipo').value = '';
+                    document.getElementById('tarefaSetor').value = '';
+                    document.getElementById('tarefaTributacao').value = '';
+                    document.getElementById('tarefaDescricao').value = '';
+                    carregarTarefas();
+                } else {
+                    alert('❌ Erro: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Erro:', error);
+                alert('❌ Erro ao criar tarefa');
+            });
+        }
+        
+        // ===== MODAL VINCULAR =====
+        function abrirModalVincular() {
+            console.log('📝 Abrindo modal vincular');
+            const modal = document.getElementById('modalVincular');
+            console.log('Modal encontrado:', modal);
+            if (modal) {
+                modal.classList.add('active');
+                console.log('✅ Modal ativado');
+            }
+        }
+        
+        function fecharModalVincular() {
+            console.log('🚪 Fechando modal vincular');
+            document.getElementById('modalVincular').classList.remove('active');
+        }
+        
+        function buscarEmpresas(query) {
+            console.log('🔍 Buscando empresas:', query);
+            
+            if (query.length < 2) {
+                document.getElementById('resultadosEmpresas').innerHTML = '';
+                return;
+            }
+            
+            fetch('/tarefas-melhoradas/api/empresas?search=' + encodeURIComponent(query), {
+                credentials: 'same-origin'
+            })
+            .then(r => r.json())
+            .then(data => {
+                console.log('Empresas encontradas:', data);
+                mostrarEmpresas(data.empresas || []);
+            })
+            .catch(error => {
+                console.error('Erro ao buscar empresas:', error);
+            });
+        }
+        
+        function mostrarEmpresas(empresas) {
+            const div = document.getElementById('resultadosEmpresas');
+            
+            if (empresas.length === 0) {
+                div.innerHTML = '<p style="color: #b8c2d3; padding: 10px;">Nenhuma empresa encontrada</p>';
+                return;
+            }
+            
+            div.innerHTML = empresas.map(empresa => `
+                <div onclick="selecionarEmpresa(${empresa.id}, '${empresa.nome}')" style="padding: 10px; background-color: #2a4477; margin: 5px 0; border-radius: 4px; cursor: pointer; transition: background-color 0.2s;">
+                    <strong>${empresa.nome}</strong><br>
+                    <small style="color: #b8c2d3;">Código: ${empresa.codigo}</small>
+                </div>
+            `).join('');
+        }
+        
+        function selecionarEmpresa(id, nome) {
+            console.log('✅ Empresa selecionada:', id, nome);
+            document.getElementById('empresaSelecionadaDiv').style.display = 'block';
+            document.getElementById('empresaSelecionadaNome').textContent = nome;
+            document.getElementById('resultadosEmpresas').innerHTML = '';
+            document.getElementById('buscaEmpresa').value = '';
+        }
+        
+        function salvarVinculacao() {
+            console.log('💾 Salvando vinculação');
+            alert('Funcionalidade em desenvolvimento');
+        }
+        
+        // ===== CARREGAR TAREFAS =====
+        function carregarTarefas() {
+            console.log('📋 Carregando tarefas');
+            
+            fetch('/tarefas-melhoradas/api/tarefas', {
+                credentials: 'same-origin'
+            })
+            .then(r => r.json())
+            .then(data => {
+                console.log('Tarefas recebidas:', data);
+                if (data.success && data.tarefas) {
+                    mostrarTarefas(data.tarefas);
+                } else {
+                    document.getElementById('listaTarefas').innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px; color: #b8c2d3;">Nenhuma tarefa encontrada</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao carregar tarefas:', error);
+                document.getElementById('listaTarefas').innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px; color: #ff6b6b;">Erro ao carregar tarefas</td></tr>';
+            });
+        }
+        
+        function mostrarTarefas(tarefas) {
+            const tbody = document.getElementById('listaTarefas');
+            
+            if (tarefas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 30px; color: #b8c2d3;">Nenhuma tarefa encontrada</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = tarefas.map(tarefa => `
+                <tr>
+                    <td>${tarefa.nome}</td>
+                    <td><span class="badge badge-info">${tarefa.tipo}</span></td>
+                    <td>${tarefa.setor || 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // Carregar ao iniciar
+        window.addEventListener('load', function() {
+            console.log('🚀 Window loaded - carregando tarefas');
+            carregarTarefas();
+        });
+        
+        console.log('✅ SCRIPT COMPLETO CARREGADO');
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block title %}Demo - Sistema de Busca Unificado{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='unified-search.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-search"></i> Demo - Sistema de Busca Unificado</h1>
+    <p>Teste o novo sistema de busca moderno e performático</p>
+  </div>
+
+  <div class="demo-container">
+    <!-- Busca de Empresas -->
+    <div class="demo-section">
+      <h3><i class="fas fa-building"></i> Busca de Empresas</h3>
+      <p>Busque por nome ou código da empresa. Suporte a seleção múltipla.</p>
+      
+      <div class="form-group">
+        <label>Empresas:</label>
+        <div 
+          data-unified-search='{"type": "empresa", "multiple": true, "placeholder": "Digite para buscar empresas...", "showFilters": true}'
+          class="unified-search-container"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Busca de Tarefas -->
+    <div class="demo-section">
+      <h3><i class="fas fa-tasks"></i> Busca de Tarefas</h3>
+      <p>Busque por nome, descrição ou tipo de tarefa.</p>
+      
+      <div class="form-group">
+        <label>Tarefas:</label>
+        <div 
+          data-unified-search='{"type": "tarefa", "multiple": true, "placeholder": "Digite para buscar tarefas...", "showFilters": true}'
+          class="unified-search-container"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Busca de Colaboradores -->
+    <div class="demo-section">
+      <h3><i class="fas fa-users"></i> Busca de Colaboradores</h3>
+      <p>Busque por nome ou login do colaborador.</p>
+      
+      <div class="form-group">
+        <label>Colaboradores:</label>
+        <div 
+          data-unified-search='{"type": "colaborador", "multiple": true, "placeholder": "Digite para buscar colaboradores...", "showFilters": true}'
+          class="unified-search-container"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Busca de Setores -->
+    <div class="demo-section">
+      <h3><i class="fas fa-sitemap"></i> Busca de Setores</h3>
+      <p>Busque por nome do setor.</p>
+      
+      <div class="form-group">
+        <label>Setores:</label>
+        <div 
+          data-unified-search='{"type": "setor", "multiple": false, "placeholder": "Digite para buscar setores...", "showFilters": true}'
+          class="unified-search-container"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="demo-section">
+      <h3><i class="fas fa-list"></i> Resultados das Seleções</h3>
+      <p>Veja os itens selecionados em tempo real:</p>
+      
+      <div class="results-container">
+        <div class="result-item">
+          <strong>Empresas selecionadas:</strong>
+          <span id="empresas-result">Nenhuma</span>
+        </div>
+        <div class="result-item">
+          <strong>Tarefas selecionadas:</strong>
+          <span id="tarefas-result">Nenhuma</span>
+        </div>
+        <div class="result-item">
+          <strong>Colaboradores selecionados:</strong>
+          <span id="colaboradores-result">Nenhuma</span>
+        </div>
+        <div class="result-item">
+          <strong>Setor selecionado:</strong>
+          <span id="setores-result">Nenhum</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estatísticas -->
+    <div class="demo-section">
+      <h3><i class="fas fa-chart-bar"></i> Estatísticas do Sistema</h3>
+      <p>Informações sobre os dados disponíveis:</p>
+      
+      <div class="stats-container" id="stats-container">
+        <div class="loading">Carregando estatísticas...</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.demo-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.demo-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.demo-section h3 {
+  margin: 0 0 8px 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.demo-section p {
+  margin: 0 0 20px 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.results-container {
+  display: grid;
+  gap: 16px;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.result-item strong {
+  color: #374151;
+  font-weight: 600;
+}
+
+.result-item span {
+  color: #6b7280;
+  font-family: monospace;
+  background: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  font-size: 0.9rem;
+}
+
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-card h4 {
+  margin: 0 0 8px 0;
+  color: #374151;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-card .stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.stat-card .stat-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.loading {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 20px;
+}
+
+@media (max-width: 768px) {
+  .demo-container {
+    padding: 16px;
+  }
+  
+  .demo-section {
+    padding: 20px;
+  }
+  
+  .result-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<script src="{{ url_for('static', filename='unified-search.js') }}"></script>
+<script>
+// Aguardar carregamento do componente
+document.addEventListener('DOMContentLoaded', function() {
+  // Aguardar um pouco para garantir que o componente foi inicializado
+  setTimeout(() => {
+    // Escutar mudanças nos componentes de busca
+    document.querySelectorAll('[data-unified-search]').forEach(container => {
+      container.addEventListener('unifiedSearchChange', function(e) {
+        const type = e.detail.type;
+        const selectedValues = e.detail.selectedValues;
+        
+        // Atualizar resultado correspondente
+        const resultElement = document.getElementById(`${type}s-result`);
+        if (resultElement) {
+          if (selectedValues) {
+            resultElement.textContent = selectedValues;
+          } else {
+            resultElement.textContent = 'Nenhum';
+          }
+        }
+      });
+    });
+    
+    // Carregar estatísticas
+    loadStats();
+  }, 1000);
+});
+
+async function loadStats() {
+  try {
+    const response = await fetch('/api/search/stats', {
+      credentials: 'same-origin'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.success) {
+        displayStats(data.stats);
+      } else {
+        throw new Error(data.message);
+      }
+    } else {
+      throw new Error(`HTTP ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Erro ao carregar estatísticas:', error);
+    document.getElementById('stats-container').innerHTML = 
+      '<div class="error">Erro ao carregar estatísticas</div>';
+  }
+}
+
+function displayStats(stats) {
+  const container = document.getElementById('stats-container');
+  
+  const statsHTML = Object.entries(stats).map(([type, data]) => {
+    const typeLabels = {
+      empresas: 'Empresas',
+      tarefas: 'Tarefas',
+      colaboradores: 'Colaboradores',
+      setores: 'Setores'
+    };
+    
+    return `
+      <div class="stat-card">
+        <h4>${typeLabels[type] || type}</h4>
+        <div class="stat-number">${data.acessivel}</div>
+        <div class="stat-label">de ${data.total} total</div>
+      </div>
+    `;
+  }).join('');
+  
+  container.innerHTML = statsHTML;
+}
+</script>
+{% endblock %}

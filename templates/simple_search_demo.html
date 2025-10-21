@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Demo - Sistema de Busca Simples{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='simple-search.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-search"></i> Demo - Sistema de Busca Simples</h1>
+    <p>Versão simplificada do sistema de busca - HTML direto sem complexidade</p>
+  </div>
+
+  <div class="demo-container">
+    <!-- Busca de Empresas -->
+    <div class="demo-section">
+      <h3><i class="fas fa-building"></i> Busca de Empresas</h3>
+      <p>Digite para buscar empresas por nome ou código:</p>
+      
+      <div class="form-group">
+        <label>Empresas:</label>
+        <div 
+          data-simple-search='{"type": "empresa", "multiple": true, "placeholder": "Digite para buscar empresas..."}'
+          class="simple-search-container"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Busca de Tarefas -->
+    <div class="demo-section">
+      <h3><i class="fas fa-tasks"></i> Busca de Tarefas</h3>
+      <p>Digite para buscar tarefas por nome ou descrição:</p>
+      
+      <div class="form-group">
+        <label>Tarefas:</label>
+        <div 
+          data-simple-search='{"type": "tarefa", "multiple": true, "placeholder": "Digite para buscar tarefas..."}'
+          class="simple-search-container"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Busca de Colaboradores -->
+    <div class="demo-section">
+      <h3><i class="fas fa-users"></i> Busca de Colaboradores</h3>
+      <p>Digite para buscar colaboradores por nome ou login:</p>
+      
+      <div class="form-group">
+        <label>Colaboradores:</label>
+        <div 
+          data-simple-search='{"type": "colaborador", "multiple": true, "placeholder": "Digite para buscar colaboradores..."}'
+          class="simple-search-container"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Busca de Setores -->
+    <div class="demo-section">
+      <h3><i class="fas fa-sitemap"></i> Busca de Setores</h3>
+      <p>Digite para buscar setores por nome:</p>
+      
+      <div class="form-group">
+        <label>Setores:</label>
+        <div 
+          data-simple-search='{"type": "setor", "multiple": false, "placeholder": "Digite para buscar setores..."}'
+          class="simple-search-container"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Resultados -->
+    <div class="demo-section">
+      <h3><i class="fas fa-list"></i> Resultados das Seleções</h3>
+      <p>Veja os itens selecionados em tempo real:</p>
+      
+      <div class="results-container">
+        <div class="result-item">
+          <strong>Empresas selecionadas:</strong>
+          <span id="empresas-result">Nenhuma</span>
+        </div>
+        <div class="result-item">
+          <strong>Tarefas selecionadas:</strong>
+          <span id="tarefas-result">Nenhuma</span>
+        </div>
+        <div class="result-item">
+          <strong>Colaboradores selecionados:</strong>
+          <span id="colaboradores-result">Nenhuma</span>
+        </div>
+        <div class="result-item">
+          <strong>Setor selecionado:</strong>
+          <span id="setores-result">Nenhum</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teste de API -->
+    <div class="demo-section">
+      <h3><i class="fas fa-code"></i> Teste de API</h3>
+      <p>Teste direto da API de busca:</p>
+      
+      <div class="api-test">
+        <div class="form-group">
+          <label>Tipo de busca:</label>
+          <select id="api-type">
+            <option value="empresas">Empresas</option>
+            <option value="tarefas">Tarefas</option>
+            <option value="colaboradores">Colaboradores</option>
+            <option value="setores">Setores</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Termo de busca:</label>
+          <input type="text" id="api-query" placeholder="Digite o termo de busca...">
+        </div>
+        
+        <button onclick="testAPI()" class="btn btn-primary">
+          <i class="fas fa-search"></i> Testar API
+        </button>
+        
+        <div id="api-results" class="api-results"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.demo-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.demo-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.demo-section h3 {
+  margin: 0 0 8px 0;
+  color: #1f2937;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.demo-section p {
+  margin: 0 0 20px 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.form-group select,
+.form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  color: #374151;
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.results-container {
+  display: grid;
+  gap: 16px;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.result-item strong {
+  color: #374151;
+  font-weight: 600;
+}
+
+.result-item span {
+  color: #6b7280;
+  font-family: monospace;
+  background: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  font-size: 0.9rem;
+}
+
+.api-test {
+  display: grid;
+  gap: 16px;
+}
+
+.api-results {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  min-height: 100px;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.api-results.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.api-results.error {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.api-results.success {
+  color: #059669;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+@media (max-width: 768px) {
+  .demo-container {
+    padding: 16px;
+  }
+  
+  .demo-section {
+    padding: 20px;
+  }
+  
+  .result-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+</style>
+
+<script src="{{ url_for('static', filename='simple-search.js') }}"></script>
+<script>
+// Aguardar carregamento do componente
+document.addEventListener('DOMContentLoaded', function() {
+  // Aguardar um pouco para garantir que o componente foi inicializado
+  setTimeout(() => {
+    // Escutar mudanças nos componentes de busca
+    document.querySelectorAll('[data-simple-search]').forEach(container => {
+      container.addEventListener('simpleSearchChange', function(e) {
+        const type = e.detail.type;
+        const selectedValues = e.detail.selectedValues;
+        
+        // Atualizar resultado correspondente
+        const resultElement = document.getElementById(`${type}s-result`);
+        if (resultElement) {
+          if (selectedValues) {
+            resultElement.textContent = selectedValues;
+          } else {
+            resultElement.textContent = 'Nenhum';
+          }
+        }
+      });
+    });
+  }, 1000);
+});
+
+async function testAPI() {
+  const type = document.getElementById('api-type').value;
+  const query = document.getElementById('api-query').value;
+  const resultsDiv = document.getElementById('api-results');
+  
+  if (!query.trim()) {
+    resultsDiv.textContent = 'Digite um termo de busca primeiro.';
+    resultsDiv.className = 'api-results error';
+    return;
+  }
+  
+  resultsDiv.textContent = 'Buscando...';
+  resultsDiv.className = 'api-results loading';
+  
+  try {
+    const response = await fetch(`/api/search/${type}?q=${encodeURIComponent(query)}&limit=10`, {
+      credentials: 'same-origin'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      resultsDiv.textContent = JSON.stringify(data, null, 2);
+      resultsDiv.className = 'api-results success';
+    } else {
+      throw new Error(data.message || 'Erro na API');
+    }
+    
+  } catch (error) {
+    resultsDiv.textContent = `Erro: ${error.message}`;
+    resultsDiv.className = 'api-results error';
+  }
+}
+
+// Permitir busca com Enter
+document.getElementById('api-query').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    testAPI();
+  }
+});
+</script>
+{% endblock %}

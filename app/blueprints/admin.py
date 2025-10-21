@@ -1,6 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, send_file
 from app.db import db
-from app.models import Usuario, Setor, Empresa, Tributacao, Tarefa
+from app.models import (
+    Usuario, Setor, Empresa, Tributacao, Tarefa, RelacionamentoTarefa, 
+    VinculacaoEmpresaTributacao, TarefaTributacao, MudancaTributacaoPendente,
+    HistoricoMudancaTributacao
+)
+from datetime import date
 import pandas as pd
 import io
 
@@ -245,7 +250,7 @@ def change_password():
 
 @bp.post('/change-tributacao')
 def change_tributacao():
-	"""Altera a tributação de uma empresa"""
+	"""Altera a tributação de uma empresa - Nova lógica com controle de tarefas"""
 	guard = require_admin()
 	if guard:
 		return guard
@@ -253,6 +258,7 @@ def change_tributacao():
 	empresa_id = request.form.get('empresa_id', type=int)
 	nova_tributacao_id = request.form.get('nova_tributacao_id', type=int)
 	confirmar_alteracao = request.form.get('confirmar_alteracao')
+	motivo = request.form.get('motivo', 'Mudança de tributação')
 	
 	if not empresa_id or not nova_tributacao_id:
 		flash('Todos os campos são obrigatórios!')
@@ -267,8 +273,8 @@ def change_tributacao():
 		flash('Empresa não encontrada!')
 		return redirect(url_for('admin.admin_page'))
 	
-	tributacao = Tributacao.query.get(nova_tributacao_id)
-	if not tributacao:
+	nova_tributacao = Tributacao.query.get(nova_tributacao_id)
+	if not nova_tributacao:
 		flash('Tributação não encontrada!')
 		return redirect(url_for('admin.admin_page'))
 	
@@ -277,15 +283,100 @@ def change_tributacao():
 		flash('A empresa já possui esta tributação!')
 		return redirect(url_for('admin.admin_page'))
 	
-	# Armazenar tributação anterior para mensagem
+	# Armazenar tributação anterior
 	tributacao_anterior = Tributacao.query.get(empresa.tributacao_id)
 	tributacao_anterior_nome = tributacao_anterior.nome if tributacao_anterior else 'N/A'
 	
-	# Atualizar tributação
-	empresa.tributacao_id = nova_tributacao_id
-	db.session.commit()
+	try:
+		# 1. Criar registro de mudança pendente
+		mudanca_pendente = MudancaTributacaoPendente(
+			empresa_id=empresa_id,
+			tributacao_anterior_id=empresa.tributacao_id,
+			tributacao_nova_id=nova_tributacao_id,
+			data_mudanca=date.today(),
+			motivo=motivo,
+			criado_por=session.get('user_id')
+		)
+		db.session.add(mudanca_pendente)
+		db.session.flush()  # Para obter o ID
+		
+		# 2. Desativar vinculação atual
+		vinculacao_atual = VinculacaoEmpresaTributacao.query.filter_by(
+			empresa_id=empresa_id, ativo=True
+		).first()
+		
+		if vinculacao_atual:
+			vinculacao_atual.ativo = False
+			vinculacao_atual.data_fim = date.today()
+		
+		# 3. Criar nova vinculação
+		nova_vinculacao = VinculacaoEmpresaTributacao(
+			empresa_id=empresa_id,
+			tributacao_id=nova_tributacao_id,
+			data_inicio=date.today(),
+			ativo=True
+		)
+		db.session.add(nova_vinculacao)
+		db.session.flush()  # Para obter o ID
+		
+		# 4. Desativar relacionamentos atuais (tarefas antigas)
+		relacionamentos_atuais = RelacionamentoTarefa.query.filter_by(
+			empresa_id=empresa_id,
+			versao_atual=True
+		).all()
+		
+		for rel in relacionamentos_atuais:
+			rel.versao_atual = False
+			rel.data_fim = date.today()
+			rel.motivo_desativacao = f"Mudança de tributação: {tributacao_anterior_nome} -> {nova_tributacao.nome}"
+		
+		# 5. Atualizar empresa
+		empresa.tributacao_id = nova_tributacao_id
+		
+		# 6. Buscar tarefas da nova tributação
+		tarefas_nova_tributacao = TarefaTributacao.query.filter_by(
+			tributacao_id=nova_tributacao_id,
+			ativo=True
+		).all()
+		
+		# 7. Criar relacionamentos para tarefas da nova tributação (sem responsável - será definido pelo gerente)
+		for tt in tarefas_nova_tributacao:
+			# Verificar se já existe relacionamento (para tarefas comuns)
+			rel_existente = RelacionamentoTarefa.query.filter_by(
+				empresa_id=empresa_id,
+				tarefa_id=tt.tarefa_id,
+				versao_atual=False
+			).first()
+			
+			if rel_existente:
+				# Reativar relacionamento existente
+				rel_existente.versao_atual = True
+				rel_existente.vinculacao_id = nova_vinculacao.id
+				rel_existente.data_inicio = date.today()
+				rel_existente.data_fim = None
+				rel_existente.motivo_desativacao = None
+				# Responsável será definido pelo gerente
+			else:
+				# Criar novo relacionamento (sem responsável)
+				novo_rel = RelacionamentoTarefa(
+					empresa_id=empresa_id,
+					tarefa_id=tt.tarefa_id,
+					responsavel_id=None,  # Será definido pelo gerente
+					vinculacao_id=nova_vinculacao.id,
+					status='ativa',
+					data_inicio=date.today(),
+					versao_atual=True
+				)
+				db.session.add(novo_rel)
+		
+		db.session.commit()
+		
+		flash(f'✅ Tributação alterada com sucesso para {empresa.nome}! De {tributacao_anterior_nome} para {nova_tributacao.nome}. As tarefas antigas foram desativadas e as novas tarefas precisam ser vinculadas aos responsáveis no painel do gerente.')
+		
+	except Exception as e:
+		db.session.rollback()
+		flash(f'❌ Erro ao alterar tributação: {str(e)}')
 	
-	flash(f'Tributação alterada com sucesso para a empresa {empresa.nome}! De {tributacao_anterior_nome} para {tributacao.nome}. Lembre-se de refazer os responsáveis pelas tarefas.')
 	return redirect(url_for('admin.admin_page'))
 
 

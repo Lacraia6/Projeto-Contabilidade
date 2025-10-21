@@ -52,7 +52,7 @@
           <a href="{{ url_for('empresas.return_page') }}"><i class="fas fa-building"></i> Empresas</a>
         </li> -->
         <li class="nav-item {% if aba == 'contas' %}active{% endif %}">
-          <a href="/tarefas-melhoradas/"><i class="fas fa-clipboard-list"></i> Tarefas</a>
+          <a href="/tarefas-melhoradas/standalone"><i class="fas fa-clipboard-list"></i> Tarefas</a>
         </li>
         <li class="nav-item {% if aba == 'relatorios' %}active{% endif %}">
           <a href="{{ url_for('relatorios.return_page') }}"><i class="fas fa-chart-bar"></i> Relatórios</a>
@@ -175,45 +175,8 @@
         console.log(`   Pointer-events: ${getComputedStyle(mainContent).pointerEvents}`);
       }
       
-      // Adicionar listener de debug para cliques
-      document.addEventListener('click', function(e) {
-        console.log('🖱️ Clique detectado em:', e.target);
-        console.log('   Tag:', e.target.tagName);
-        console.log('   Class:', e.target.className);
-        console.log('   ID:', e.target.id);
-      });
-      
       console.log('✅ Script de clicabilidade carregado');
-      
-      // Verificar e corrigir modais invisíveis
-      function checkInvisibleModals() {
-        const modals = document.querySelectorAll('.modal, .alert-modal, .confirm-modal');
-        modals.forEach(modal => {
-          const isVisible = modal.classList.contains('show') || modal.style.display === 'flex' || modal.style.display === 'block';
-          if (!isVisible) {
-            modal.style.display = 'none';
-            modal.style.pointerEvents = 'none';
-            modal.classList.remove('show');
-          }
-        });
-        
-        // Verificar se há elementos com z-index alto que podem estar bloqueando
-        const highZIndexElements = document.querySelectorAll('[style*="z-index"]');
-        highZIndexElements.forEach(element => {
-          const zIndex = parseInt(getComputedStyle(element).zIndex);
-          if (zIndex > 1000 && !element.classList.contains('show') && element.style.display !== 'flex') {
-            element.style.pointerEvents = 'none';
-          }
-        });
-        
-        console.log('🔍 Verificação de modais invisíveis concluída');
-      }
-      
-      // Executar verificação
-      checkInvisibleModals();
-      
-      // Executar periodicamente
-      setInterval(checkInvisibleModals, 2000);
+      console.log('✅ Scripts problemáticos removidos');
     });
   </script>
 </body>

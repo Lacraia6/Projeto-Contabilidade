@@ -2075,22 +2075,16 @@ window.showConfirmModal = function(title, message, onConfirm, onCancel = null) {
   
   // Configurar eventos
   const confirmBtn = document.getElementById('confirmModalBtn');
-  const modalInstance = $(modal);
   
   // Remover eventos anteriores
   confirmBtn.onclick = null;
-  modalInstance.off('hidden.bs.modal');
   
   // Adicionar novos eventos
   confirmBtn.onclick = function() {
-    modalInstance.modal('hide');
+    closeModal('confirmModal');
     if (onConfirm) onConfirm();
   };
   
-  modalInstance.on('hidden.bs.modal', function() {
-    if (onCancel) onCancel();
-  });
-  
   // Mostrar modal
-  modalInstance.modal('show');
+  showModal('confirmModal');
 };

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from app.db import db
 from app.models import Empresa, RelacionamentoTarefa, Periodo, Tarefa, Usuario, Retificacao
+from app.utils import get_previous_period, get_previous_period_label, convert_period_to_label, validate_period_format
 from datetime import datetime
 import re
 
@@ -113,7 +114,7 @@ def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_fil
 def return_dashboard():
     """Página principal do dashboard do funcionário"""
     try:
-        periodo_input = request.args.get('periodo', '08/2025')
+        periodo_input = request.args.get('periodo', 'get_previous_period()')
         empresa_id = request.args.get('empresa_id', type=int)
         empresa_ids = request.args.get('empresa_ids', '')
         tarefa_id = request.args.get('tarefa_id', type=int)
@@ -138,7 +139,7 @@ def return_dashboard():
         
         # Validar período
         if not validate_period_format(periodo_input):
-            periodo_input = '08/2025'  # Valor padrão
+            periodo_input = 'get_previous_period()'  # Valor padrão
         
         periodo_atual = convert_period_to_label(periodo_input)
         
@@ -209,7 +210,7 @@ def return_dashboard():
     except Exception as e:
         print(f"Erro no dashboard: {e}")
         return render_template('dashboard.html',
-            periodo_atual='08/2025',
+            periodo_atual='get_previous_period()',
             empresa_atual=None,
             tarefa_atual=None,
             empresas=[],
@@ -304,7 +305,7 @@ def get_tarefas_dashboard():
 def api_resumo():
     """API para buscar resumo de tarefas do dashboard"""
     try:
-        periodo_input = request.args.get('periodo', '08/2025')
+        periodo_input = request.args.get('periodo', 'get_previous_period()')
         empresa_id = request.args.get('empresa_id', type=int)
         empresa_ids = request.args.get('empresa_ids', '')
         tarefa_id = request.args.get('tarefa_id', type=int)

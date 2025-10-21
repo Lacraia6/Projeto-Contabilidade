@@ -1,24 +1,22 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from app.db import db
 from app.models import Empresa, RelacionamentoTarefa, Periodo, Tarefa, Usuario, Retificacao
+from app.utils import get_previous_period, get_previous_period_label, convert_period_to_label, validate_period_format
 from datetime import datetime
 import re
 
 bp = Blueprint('dashboard', __name__, url_prefix='')
 
 
-def validate_period_format(period):
+# Funções movidas para app/utils.py - mantidas aqui para compatibilidade
+def validate_period_format_local(period):
     """Valida se o período está no formato correto (MM/AAAA)"""
-    pattern = r'^(0[1-9]|1[0-2])/(20[0-9]{2})$'
-    return re.match(pattern, period) is not None
+    return validate_period_format(period)
 
 
-def convert_period_to_label(period):
+def convert_period_to_label_local(period):
     """Converte período de MM/AAAA para YYYY-MM"""
-    if '/' in period:
-        month, year = period.split('/')
-        return f"{year}-{month.zfill(2)}"
-    return period
+    return convert_period_to_label(period)
 
 
 def _build_periodos(empresa_id, periodo_label, user_id, tarefa_id):
@@ -114,6 +112,12 @@ def _should_show_task_by_type(tarefa_tipo, periodo_label, tarefa_periodo_label=N
 
 def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_filter):
     """Constrói lista de períodos com suporte a múltiplas empresas e tarefas"""
+    from datetime import datetime
+    
+    # Determinar se é período atual ou futuro
+    periodo_atual = get_previous_period_label()  # Período anterior (padrão)
+    is_periodo_atual = periodo_label == periodo_atual
+    
     query = db.session.query(Periodo, RelacionamentoTarefa, Tarefa, Empresa).join(
         RelacionamentoTarefa, Periodo.relacionamento_tarefa_id == RelacionamentoTarefa.id
     ).join(
@@ -139,6 +143,12 @@ def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_fil
         else:
             query = query.filter(RelacionamentoTarefa.tarefa_id == tarefa_filter)
     
+    # NOVA LÓGICA: Para período atual, mostrar todas as tarefas (ativas e antigas)
+    # Para períodos futuros, mostrar apenas tarefas ativas
+    if not is_periodo_atual:
+        # Para períodos futuros, mostrar apenas tarefas ativas (versao_atual = True)
+        query = query.filter(RelacionamentoTarefa.versao_atual == True)
+    
     itens = []
     for p, rel, tar, emp in query.all():
         # Excluir tarefas anuais (são tratadas separadamente)
@@ -155,7 +165,10 @@ def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_fil
             # Para tarefas mensais, aplicar filtro de período normalmente
             if periodo_label and p.periodo_label != periodo_label:
                 continue
-            
+        
+        # Determinar se é tarefa antiga (desativada)
+        is_tarefa_antiga = not rel.versao_atual
+        
         itens.append({
             "periodo_id": p.id,
             "nome": tar.nome,  # Nome da tarefa
@@ -168,7 +181,9 @@ def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_fil
             "data_conclusao": p.data_conclusao.strftime('%d/%m/%Y') if p.data_conclusao else None,
             "data_retificacao": p.data_retificacao.strftime('%d/%m/%Y') if p.data_retificacao else None,
             "contador_retificacoes": p.contador_retificacoes or 0,
-            "periodo_label": p.periodo_label
+            "periodo_label": p.periodo_label,
+            "is_tarefa_antiga": is_tarefa_antiga,  # Nova propriedade
+            "motivo_desativacao": rel.motivo_desativacao if is_tarefa_antiga else None
         })
     return itens
 
@@ -178,7 +193,7 @@ def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_fil
 def return_dashboard():
     """Página principal do dashboard do funcionário"""
     try:
-        periodo_input = request.args.get('periodo', '08/2025')
+        periodo_input = request.args.get('periodo', get_previous_period())
         empresa_id = request.args.get('empresa_id', type=int)
         empresa_ids = request.args.get('empresa_ids', '')
         tarefa_id = request.args.get('tarefa_id', type=int)

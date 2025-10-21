@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+
+{% block title %}Sistema Completo de Tarefas{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-tasks text-primary"></i>
+                    Sistema Completo de Tarefas
+                </h1>
+                <div class="text-muted">
+                    <i class="fas fa-user"></i> {{ usuario.nome }} ({{ usuario.tipo.title() }})
+                </div>
+            </div>
+
+            <!-- Cards de Estatísticas -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ stats.total_empresas }}</h4>
+                                    <p class="card-text">Empresas Ativas</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-building fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ stats.total_atribuicoes_pendentes }}</h4>
+                                    <p class="card-text">Tarefas Pendentes</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ stats.tarefas_concluidas_mes }}</h4>
+                                    <p class="card-text">Tarefas Concluídas</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ stats.total_periodos_ativos }}</h4>
+                                    <p class="card-text">Períodos Ativos</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-calendar-alt fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navegação por Abas -->
+            <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                        <i class="fas fa-chart-pie"></i> Visão Geral
+                    </button>
+                </li>
+                
+                {% if usuario.tipo in ['admin', 'supervisor'] %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="empresas-tab" data-bs-toggle="tab" data-bs-target="#empresas" type="button" role="tab">
+                        <i class="fas fa-building"></i> Empresas
+                    </button>
+                </li>
+                {% endif %}
+                
+                {% if usuario.tipo in ['admin', 'gerente'] %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="responsaveis-tab" data-bs-toggle="tab" data-bs-target="#responsaveis" type="button" role="tab">
+                        <i class="fas fa-users"></i> Responsáveis Padrão
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="atribuicoes-tab" data-bs-toggle="tab" data-bs-target="#atribuicoes" type="button" role="tab">
+                        <i class="fas fa-tasks"></i> Atribuições
+                    </button>
+                </li>
+                {% endif %}
+                
+                {% if usuario.tipo == 'normal' %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="minhas-tarefas-tab" data-bs-toggle="tab" data-bs-target="#minhas-tarefas" type="button" role="tab">
+                        <i class="fas fa-list-check"></i> Minhas Tarefas
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+
+            <div class="tab-content" id="dashboardTabsContent">
+                <!-- Aba Visão Geral -->
+                <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-calendar-check text-primary"></i>
+                                        Períodos Ativos
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if periodos %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Empresa</th>
+                                                        <th>Período</th>
+                                                        <th>Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for periodo in periodos %}
+                                                    <tr>
+                                                        <td>{{ periodo.empresa.nome }}</td>
+                                                        <td>{{ periodo.ano }}/{{ "%02d"|format(periodo.mes) }}</td>
+                                                        <td>
+                                                            <span class="badge bg-{{ 'success' if periodo.status == 'ativo' else 'secondary' }}">
+                                                                {{ periodo.status.title() }}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">Nenhum período ativo encontrado.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-chart-line text-success"></i>
+                                        Resumo de Atribuições
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if usuario.tipo in ['admin', 'gerente'] %}
+                                        <div id="grafico-atribuicoes">
+                                            <canvas id="chartAtribuicoes" width="400" height="200"></canvas>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center">
+                                            <h4>{{ atribuicoes|length }}</h4>
+                                            <p class="text-muted">Suas tarefas pendentes</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aba Empresas (Admin/Supervisor) -->
+                {% if usuario.tipo in ['admin', 'supervisor'] %}
+                <div class="tab-pane fade" id="empresas" role="tabpanel">
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Gerenciar Empresas</h5>
+                            <button class="btn btn-primary" onclick="mostrarModalCriarPeriodo()">
+                                <i class="fas fa-plus"></i> Novo Período
+                            </button>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Empresa</th>
+                                        <th>Tributação Atual</th>
+                                        <th>Período Ativo</th>
+                                        <th>Atribuições</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for empresa in empresas %}
+                                    <tr>
+                                        <td>{{ empresa.nome }}</td>
+                                        <td>
+                                            {% set vinculacao = empresa.vinculacoes_tributacao|selectattr('ativo')|first %}
+                                            {% if vinculacao %}
+                                                <span class="badge bg-info">{{ vinculacao.tributacao.nome }}</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Não definida</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% set periodo = empresa.periodos_execucao|selectattr('status', 'equalto', 'ativo')|first %}
+                                            {% if periodo %}
+                                                {{ periodo.ano }}/{{ "%02d"|format(periodo.mes) }}
+                                            {% else %}
+                                                <span class="text-muted">Nenhum</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% set total_atrib = empresa.atribuicoes_tarefas|length %}
+                                            <span class="badge bg-primary">{{ total_atrib }}</span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="verDetalhesEmpresa({{ empresa.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Aba Responsáveis Padrão (Admin/Gerente) -->
+                {% if usuario.tipo in ['admin', 'gerente'] %}
+                <div class="tab-pane fade" id="responsaveis" role="tabpanel">
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Responsáveis Padrão por Setor/Tributação</h5>
+                            <a href="/sistema-completo-tarefas/responsaveis-padrao" class="btn btn-primary">
+                                <i class="fas fa-cog"></i> Gerenciar
+                            </a>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Configure responsáveis padrão para cada combinação de setor, tributação e tarefa.
+                            Estes serão usados para criar atribuições automaticamente.
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Aba Atribuições (Admin/Gerente) -->
+                {% if usuario.tipo in ['admin', 'gerente'] %}
+                <div class="tab-pane fade" id="atribuicoes" role="tabpanel">
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Atribuições de Tarefas</h5>
+                            <a href="/sistema-completo-tarefas/atribuicoes" class="btn btn-primary">
+                                <i class="fas fa-tasks"></i> Gerenciar
+                            </a>
+                        </div>
+                        
+                        {% if atribuicoes %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Empresa</th>
+                                        <th>Tarefa</th>
+                                        <th>Responsável</th>
+                                        <th>Período</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for atribuicao in atribuicoes[:10] %}
+                                    <tr>
+                                        <td>{{ atribuicao.empresa.nome }}</td>
+                                        <td>{{ atribuicao.tarefa.nome }}</td>
+                                        <td>{{ atribuicao.responsavel.nome }}</td>
+                                        <td>{{ atribuicao.periodo_execucao.ano }}/{{ "%02d"|format(atribuicao.periodo_execucao.mes) }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ 'warning' if atribuicao.status == 'pendente' else 'success' if atribuicao.status == 'concluida' else 'danger' }}">
+                                                {{ atribuicao.status.title() }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            
+                            {% if atribuicoes|length > 10 %}
+                            <div class="text-center mt-3">
+                                <a href="/sistema-completo-tarefas/atribuicoes" class="btn btn-outline-primary">
+                                    Ver todas as {{ atribuicoes|length }} atribuições
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Nenhuma atribuição encontrada. Configure responsáveis padrão e crie períodos para gerar atribuições automaticamente.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Aba Minhas Tarefas (Funcionário) -->
+                {% if usuario.tipo == 'normal' %}
+                <div class="tab-pane fade" id="minhas-tarefas" role="tabpanel">
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Minhas Tarefas</h5>
+                            <a href="/sistema-completo-tarefas/minhas-tarefas" class="btn btn-primary">
+                                <i class="fas fa-list-check"></i> Ver Todas
+                            </a>
+                        </div>
+                        
+                        {% if atribuicoes %}
+                        <div class="row">
+                            {% for atribuicao in atribuicoes[:6] %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ atribuicao.tarefa.nome }}</h6>
+                                        <p class="card-text">
+                                            <strong>Empresa:</strong> {{ atribuicao.empresa.nome }}<br>
+                                            <strong>Período:</strong> {{ atribuicao.periodo_execucao.ano }}/{{ "%02d"|format(atribuicao.periodo_execucao.mes) }}<br>
+                                            <strong>Status:</strong> 
+                                            <span class="badge bg-warning">{{ atribuicao.status.title() }}</span>
+                                        </p>
+                                        <button class="btn btn-sm btn-primary" onclick="executarTarefa({{ atribuicao.id }})">
+                                            <i class="fas fa-play"></i> Executar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if atribuicoes|length > 6 %}
+                        <div class="text-center mt-3">
+                            <a href="/sistema-completo-tarefas/minhas-tarefas" class="btn btn-outline-primary">
+                                Ver todas as {{ atribuicoes|length }} tarefas
+                            </a>
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            Parabéns! Você não tem tarefas pendentes no momento.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para criar período -->
+<div class="modal fade" id="modalCriarPeriodo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Criar Período Mensal</h5>
+                <button type="button" class="btn-close" onclick="fecharModalCriarPeriodo()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCriarPeriodo">
+                    <div class="mb-3">
+                        <label for="empresa-periodo" class="form-label">Empresa</label>
+                        <select class="form-control" id="empresa-periodo" required>
+                            <option value="">Selecione uma empresa</option>
+                            {% for empresa in empresas %}
+                            <option value="{{ empresa.id }}">{{ empresa.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ano-periodo" class="form-label">Ano</label>
+                        <input type="number" class="form-control" id="ano-periodo" value="{{ get_current_period().split('/')[1] }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mes-periodo" class="form-label">Mês</label>
+                        <select class="form-control" id="mes-periodo" required>
+                            <option value="1">Janeiro</option>
+                            <option value="2">Fevereiro</option>
+                            <option value="3">Março</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Maio</option>
+                            <option value="6">Junho</option>
+                            <option value="7">Julho</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Setembro</option>
+                            <option value="10">Outubro</option>
+                            <option value="11">Novembro</option>
+                            <option value="12">Dezembro</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalCriarPeriodo()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="criarPeriodo()">Criar Período</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Funções para modais
+function mostrarModalCriarPeriodo() {
+    document.getElementById('modalCriarPeriodo').style.display = 'block';
+}
+
+function fecharModalCriarPeriodo() {
+    document.getElementById('modalCriarPeriodo').style.display = 'none';
+    document.getElementById('formCriarPeriodo').reset();
+}
+
+function criarPeriodo() {
+    const empresaId = document.getElementById('empresa-periodo').value;
+    const ano = document.getElementById('ano-periodo').value;
+    const mes = document.getElementById('mes-periodo').value;
+    
+    if (!empresaId || !ano || !mes) {
+        showAlertModal('Preencha todos os campos obrigatórios', 'error', 'Erro');
+        return;
+    }
+    
+    fetch('/sistema-completo-tarefas/api/criar-periodo', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            empresa_id: parseInt(empresaId),
+            ano: parseInt(ano),
+            mes: parseInt(mes)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlertModal(data.message, 'success', 'Sucesso');
+            fecharModalCriarPeriodo();
+            location.reload();
+        } else {
+            showAlertModal(data.message, 'error', 'Erro');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showAlertModal('Erro ao criar período', 'error', 'Erro');
+    });
+}
+
+function executarTarefa(atribuicaoId) {
+    // Implementar execução de tarefa
+    showAlertModal('Funcionalidade em desenvolvimento', 'info', 'Info');
+}
+
+function verDetalhesEmpresa(empresaId) {
+    // Implementar visualização de detalhes
+    showAlertModal('Funcionalidade em desenvolvimento', 'info', 'Info');
+}
+
+// Configurar gráfico de atribuições
+document.addEventListener('DOMContentLoaded', function() {
+    {% if usuario.tipo in ['admin', 'gerente'] %}
+    // Implementar gráfico com Chart.js se necessário
+    {% endif %}
+});
+</script>
+{% endblock %}

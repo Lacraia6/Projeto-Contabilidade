@@ -243,3 +243,169 @@ class ConfiguracaoResponsavelPadrao(db.Model):
     setor = db.relationship('Setor', backref='responsaveis_padrao', lazy=True)
     tributacao = db.relationship('Tributacao', backref='responsaveis_padrao', lazy=True)
     responsavel = db.relationship('Usuario', backref='configuracoes_responsavel', lazy=True)
+
+
+# ===== NOVOS MODELOS PARA SISTEMA COMPLETO =====
+
+class PeriodoExecucao(db.Model):
+    """Controla os períodos mensais de execução para cada empresa"""
+    __tablename__ = 'periodos_execucao'
+    id = db.Column(db.Integer, primary_key=True)
+    empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=False)
+    ano = db.Column(db.Integer, nullable=False)
+    mes = db.Column(db.Integer, nullable=False)
+    data_inicio = db.Column(db.Date, nullable=False)
+    data_fim = db.Column(db.Date, nullable=False)
+    status = db.Column(db.Enum('ativo', 'finalizado', 'cancelado'), default='ativo')
+    criado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    atualizado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+    # Relacionamentos
+    empresa = db.relationship('Empresa', backref='periodos_execucao', lazy=True)
+    atribuicoes = db.relationship('AtribuicaoTarefa', backref='periodo_execucao', lazy=True)
+    checklists = db.relationship('ChecklistEmpresa', backref='periodo_execucao', lazy=True)
+    
+    def __repr__(self):
+        return f'<PeriodoExecucao {self.empresa.nome} - {self.ano}/{self.mes:02d}>'
+
+
+class AtribuicaoTarefa(db.Model):
+    """Liga empresa + tributação + tarefa + responsável + período"""
+    __tablename__ = 'atribuicoes_tarefas'
+    id = db.Column(db.Integer, primary_key=True)
+    empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=False)
+    tributacao_id = db.Column(db.Integer, db.ForeignKey('tributacoes.id'), nullable=False)
+    tarefa_id = db.Column(db.Integer, db.ForeignKey('tarefas.id'), nullable=False)
+    responsavel_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    periodo_execucao_id = db.Column(db.Integer, db.ForeignKey('periodos_execucao.id'), nullable=False)
+    data_atribuicao = db.Column(db.Date, nullable=False)
+    status = db.Column(db.Enum('pendente', 'em_andamento', 'concluida', 'retificada', 'cancelada'), default='pendente')
+    observacoes = db.Column(db.Text)
+    criado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    atualizado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+    # Relacionamentos
+    empresa = db.relationship('Empresa', backref='atribuicoes_tarefas', lazy=True)
+    tributacao = db.relationship('Tributacao', backref='atribuicoes_tarefas', lazy=True)
+    tarefa = db.relationship('Tarefa', backref='atribuicoes_tarefas', lazy=True)
+    responsavel = db.relationship('Usuario', backref='atribuicoes_tarefas', lazy=True)
+    execucoes = db.relationship('ExecucaoTarefa', backref='atribuicao', lazy=True)
+    
+    def __repr__(self):
+        return f'<AtribuicaoTarefa {self.empresa.nome} - {self.tarefa.nome} - {self.responsavel.nome}>'
+
+
+class ExecucaoTarefa(db.Model):
+    """Registra quando o funcionário executa a tarefa"""
+    __tablename__ = 'execucoes_tarefas'
+    id = db.Column(db.Integer, primary_key=True)
+    atribuicao_id = db.Column(db.Integer, db.ForeignKey('atribuicoes_tarefas.id'), nullable=False)
+    data_execucao = db.Column(db.Date, nullable=False)
+    status = db.Column(db.Enum('concluida', 'retificada'), nullable=False)
+    observacoes = db.Column(db.Text)
+    anexos = db.Column(db.JSON)  # Para arquivos/documentos
+    confirmado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    data_confirmacao = db.Column(db.TIMESTAMP)
+    criado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    
+    # Relacionamentos
+    confirmador = db.relationship('Usuario', backref='execucoes_confirmadas', lazy=True)
+    
+    def __repr__(self):
+        return f'<ExecucaoTarefa {self.atribuicao.tarefa.nome} - {self.data_execucao}>'
+
+
+class ResponsavelPadraoTarefa(db.Model):
+    """Define responsáveis padrão por setor/tributação"""
+    __tablename__ = 'responsaveis_padrao_tarefas'
+    id = db.Column(db.Integer, primary_key=True)
+    setor_id = db.Column(db.Integer, db.ForeignKey('setores.id'), nullable=False)
+    tributacao_id = db.Column(db.Integer, db.ForeignKey('tributacoes.id'), nullable=False)
+    tarefa_id = db.Column(db.Integer, db.ForeignKey('tarefas.id'), nullable=False)
+    responsavel_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    ativo = db.Column(db.Boolean, default=True)
+    criado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    atualizado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+    # Relacionamentos
+    setor = db.relationship('Setor', backref='responsaveis_padrao_tarefas', lazy=True)
+    tributacao = db.relationship('Tributacao', backref='responsaveis_padrao_tarefas', lazy=True)
+    tarefa = db.relationship('Tarefa', backref='responsaveis_padrao_tarefas', lazy=True)
+    responsavel = db.relationship('Usuario', backref='responsaveis_padrao_tarefas', lazy=True)
+    
+    def __repr__(self):
+        return f'<ResponsavelPadraoTarefa {self.tarefa.nome} - {self.responsavel.nome}>'
+
+
+class HistoricoMudancaTributacao(db.Model):
+    """Registra mudanças de tributação das empresas"""
+    __tablename__ = 'historico_mudancas_tributacao'
+    id = db.Column(db.Integer, primary_key=True)
+    empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=False)
+    tributacao_anterior_id = db.Column(db.Integer, db.ForeignKey('tributacoes.id'))
+    tributacao_nova_id = db.Column(db.Integer, db.ForeignKey('tributacoes.id'), nullable=False)
+    data_mudanca = db.Column(db.Date, nullable=False)
+    motivo = db.Column(db.Text)
+    criado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    criado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    
+    # Relacionamentos
+    empresa = db.relationship('Empresa', backref='historico_mudancas_tributacao', lazy=True)
+    tributacao_anterior = db.relationship('Tributacao', foreign_keys=[tributacao_anterior_id], backref='mudancas_anteriores', lazy=True)
+    tributacao_nova = db.relationship('Tributacao', foreign_keys=[tributacao_nova_id], backref='mudancas_novas', lazy=True)
+    criador = db.relationship('Usuario', backref='mudancas_tributacao_criadas', lazy=True)
+    
+    def __repr__(self):
+        return f'<HistoricoMudancaTributacao {self.empresa.nome} - {self.tributacao_anterior.nome if self.tributacao_anterior else "Nova"} -> {self.tributacao_nova.nome}>'
+
+
+class MudancaTributacaoPendente(db.Model):
+    """Controla mudanças de tributação que precisam ser revisadas pelo gerente"""
+    __tablename__ = 'mudancas_tributacao_pendentes'
+    id = db.Column(db.Integer, primary_key=True)
+    empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=False)
+    tributacao_anterior_id = db.Column(db.Integer, db.ForeignKey('tributacoes.id'))
+    tributacao_nova_id = db.Column(db.Integer, db.ForeignKey('tributacoes.id'), nullable=False)
+    data_mudanca = db.Column(db.Date, nullable=False)
+    motivo = db.Column(db.Text)
+    status = db.Column(db.Enum('pendente', 'em_revisao', 'concluida', 'cancelada'), default='pendente')
+    criado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    revisado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    data_revisao = db.Column(db.TIMESTAMP)
+    observacoes_revisao = db.Column(db.Text)
+    criado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    atualizado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+    # Relacionamentos
+    empresa = db.relationship('Empresa', backref='mudancas_tributacao_pendentes', lazy=True)
+    tributacao_anterior = db.relationship('Tributacao', foreign_keys=[tributacao_anterior_id], backref='mudancas_pendentes_anteriores', lazy=True)
+    tributacao_nova = db.relationship('Tributacao', foreign_keys=[tributacao_nova_id], backref='mudancas_pendentes_novas', lazy=True)
+    criador = db.relationship('Usuario', foreign_keys=[criado_por], backref='mudancas_tributacao_criadas_pendentes', lazy=True)
+    revisor = db.relationship('Usuario', foreign_keys=[revisado_por], backref='mudancas_tributacao_revisadas', lazy=True)
+    
+    def __repr__(self):
+        return f'<MudancaTributacaoPendente {self.empresa.nome} - {self.tributacao_anterior.nome if self.tributacao_anterior else "Nova"} -> {self.tributacao_nova.nome} ({self.status})>'
+
+
+class ChecklistEmpresa(db.Model):
+    """Vincula checklists às empresas por período"""
+    __tablename__ = 'checklists_empresa'
+    id = db.Column(db.Integer, primary_key=True)
+    empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=False)
+    periodo_execucao_id = db.Column(db.Integer, db.ForeignKey('periodos_execucao.id'), nullable=False)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('checklists.id'), nullable=False)
+    status = db.Column(db.Enum('pendente', 'em_andamento', 'concluido'), default='pendente')
+    responsavel_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    data_inicio = db.Column(db.Date)
+    data_fim = db.Column(db.Date)
+    observacoes = db.Column(db.Text)
+    criado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp())
+    atualizado_em = db.Column(db.TIMESTAMP, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    
+    # Relacionamentos
+    empresa = db.relationship('Empresa', backref='checklists_empresa', lazy=True)
+    checklist = db.relationship('Checklist', backref='checklists_empresa', lazy=True)
+    responsavel = db.relationship('Usuario', backref='checklists_responsavel', lazy=True)
+    
+    def __repr__(self):
+        return f'<ChecklistEmpresa {self.empresa.nome} - {self.checklist.nome}>'

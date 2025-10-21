@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, request, session
+from flask import Flask, redirect, url_for, request, session, render_template
 from app.db import db
 from datetime import datetime, date
 
@@ -35,8 +35,8 @@ mock_db = {
 	],
 	# instâncias por período (simplificado)
 	"periodos": [
-		{"periodo_id": 9001, "relacionamento_id": 5001, "periodo_label": "2025-08", "status": "pendente", "vencimento": "2025-08-20"},
-		{"periodo_id": 9002, "relacionamento_id": 5002, "periodo_label": "2025-08", "status": "concluida", "vencimento": "2025-08-05"},
+		{"periodo_id": 9001, "relacionamento_id": 5001, "periodo_label": "2025-09", "status": "pendente", "vencimento": "2025-09-20"},
+		{"periodo_id": 9002, "relacionamento_id": 5002, "periodo_label": "2025-09", "status": "concluida", "vencimento": "2025-09-05"},
 	]
 }
 
@@ -50,6 +50,23 @@ def create_app() -> Flask:
 	app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Tuta1305*@localhost/contabilidade?charset=utf8mb4'
 	app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 	db.init_app(app)
+
+	# Configuração de logging
+	import logging
+	from logging.handlers import RotatingFileHandler
+	import os
+	
+	if not app.debug and not app.testing:
+		if not os.path.exists('logs'):
+			os.mkdir('logs')
+		file_handler = RotatingFileHandler('logs/contabilidade.log', maxBytes=10240, backupCount=10)
+		file_handler.setFormatter(logging.Formatter(
+			'%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+		))
+		file_handler.setLevel(logging.INFO)
+		app.logger.addHandler(file_handler)
+		app.logger.setLevel(logging.INFO)
+		app.logger.info('Contabilidade application startup')
 
 	# Filtros Jinja para datas brasileiras
 	@app.template_filter('br_date')
@@ -75,6 +92,31 @@ def create_app() -> Flask:
 			return f"{parts[1]}/{parts[0]}"
 		return text
 
+	# Funções globais para templates
+	@app.template_global()
+	def get_previous_period():
+		"""Retorna o período anterior (MM/AAAA)"""
+		from .utils import get_previous_period
+		return get_previous_period()
+
+	@app.template_global()
+	def get_previous_period_label():
+		"""Retorna o período anterior (YYYY-MM)"""
+		from .utils import get_previous_period_label
+		return get_previous_period_label()
+
+	@app.template_global()
+	def get_current_period():
+		"""Retorna o período atual (MM/AAAA)"""
+		from .utils import get_current_period
+		return get_current_period()
+
+	@app.template_global()
+	def get_current_period_label():
+		"""Retorna o período atual (YYYY-MM)"""
+		from .utils import get_current_period_label
+		return get_current_period_label()
+
 	# Registrar blueprints
 	from .blueprints.auth import bp as auth_bp
 	from .blueprints.dashboard import bp as dashboard_bp
@@ -88,6 +130,9 @@ def create_app() -> Flask:
 	from .blueprints.checklist import bp as checklist_bp
 	from .blueprints.tarefas_melhoradas import bp as tarefas_melhoradas_bp
 	from .blueprints.api_global import bp as api_global_bp
+	from .blueprints.sistema_completo_tarefas import bp as sistema_completo_tarefas_bp
+	from .blueprints.search import bp as search_bp
+	from .blueprints.search_simple import bp as search_simple_bp
 
 	app.register_blueprint(auth_bp)
 	app.register_blueprint(dashboard_bp)
@@ -101,9 +146,24 @@ def create_app() -> Flask:
 	app.register_blueprint(api_global_bp)
 	app.register_blueprint(supervisor_bp)
 	app.register_blueprint(checklist_bp)
+	app.register_blueprint(sistema_completo_tarefas_bp)
+	app.register_blueprint(search_bp)
+	app.register_blueprint(search_simple_bp)
+
+	# Health check endpoint
+	@app.route('/health')
+	def health_check():
+		try:
+			# Test database connection
+			from sqlalchemy import text
+			db.session.execute(text('SELECT 1'))
+			return {'status': 'healthy', 'database': 'connected'}, 200
+		except Exception as e:
+			app.logger.error(f'Health check failed: {e}')
+			return {'status': 'unhealthy', 'error': str(e)}, 500
 
 	# Proteção simples de rotas (respeita flag AUTH_ENABLED)
-	PUBLIC_PATHS = {"/login"}
+	PUBLIC_PATHS = {"/login", "/health", "/api/search/empresas", "/api/search/tarefas", "/api/search/colaboradores", "/api/search/setores", "/api/search/busca-simples", "/api/search-simple/empresas", "/api/search-simple/tarefas", "/api/search-simple/colaboradores", "/api/search-simple/setores", "/api/search-simple/demo"}
 
 	@app.before_request
 	def _require_login():
@@ -117,6 +177,30 @@ def create_app() -> Flask:
 		if not session.get('user_id'):
 			return redirect(url_for('auth.login_page'))
 		return None
+
+	# Error handlers
+	@app.errorhandler(404)
+	def not_found_error(error):
+		app.logger.error(f'404 Error: {request.url}')
+		return render_template('error.html', 
+			error_code=404, 
+			error_message="Página não encontrada"), 404
+
+	@app.errorhandler(500)
+	def internal_error(error):
+		app.logger.error(f'500 Error: {error}')
+		db.session.rollback()
+		return render_template('error.html', 
+			error_code=500, 
+			error_message="Erro interno do servidor"), 500
+
+	@app.errorhandler(Exception)
+	def handle_exception(e):
+		app.logger.error(f'Unhandled Exception: {e}')
+		db.session.rollback()
+		return render_template('error.html', 
+			error_code=500, 
+			error_message="Erro interno do servidor"), 500
 
 	return app
 

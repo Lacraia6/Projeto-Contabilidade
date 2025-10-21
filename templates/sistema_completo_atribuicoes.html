@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+
+{% block title %}Atribuições de Tarefas - Sistema Completo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-tasks text-primary"></i>
+                    Atribuições de Tarefas
+                </h1>
+                <button class="btn btn-success" onclick="mostrarModalCriarAtribuicoes()">
+                    <i class="fas fa-magic"></i> Criar Atribuições Automáticas
+                </button>
+            </div>
+
+            <!-- Cards de Estatísticas -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title" id="total-atribuicoes">{{ atribuicoes|length }}</h4>
+                                    <p class="card-text">Total de Atribuições</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-tasks fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title" id="atribuicoes-pendentes">{{ atribuicoes|selectattr('status', 'equalto', 'pendente')|list|length }}</h4>
+                                    <p class="card-text">Pendentes</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title" id="atribuicoes-concluidas">{{ atribuicoes|selectattr('status', 'equalto', 'concluida')|list|length }}</h4>
+                                    <p class="card-text">Concluídas</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title" id="atribuicoes-retificadas">{{ atribuicoes|selectattr('status', 'equalto', 'retificada')|list|length }}</h4>
+                                    <p class="card-text">Retificadas</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <label for="filtro-empresa" class="form-label">Empresa</label>
+                            <select class="form-control" id="filtro-empresa">
+                                <option value="">Todas as empresas</option>
+                                {% for empresa in empresas %}
+                                <option value="{{ empresa.id }}">{{ empresa.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filtro-periodo" class="form-label">Período</label>
+                            <select class="form-control" id="filtro-periodo">
+                                <option value="">Todos os períodos</option>
+                                {% for periodo in periodos %}
+                                <option value="{{ periodo.id }}">{{ periodo.ano }}/{{ "%02d"|format(periodo.mes) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filtro-status" class="form-label">Status</label>
+                            <select class="form-control" id="filtro-status">
+                                <option value="">Todos os status</option>
+                                <option value="pendente">Pendente</option>
+                                <option value="em_andamento">Em Andamento</option>
+                                <option value="concluida">Concluída</option>
+                                <option value="retificada">Retificada</option>
+                                <option value="cancelada">Cancelada</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filtro-responsavel" class="form-label">Responsável</label>
+                            <input type="text" class="form-control" id="filtro-responsavel" placeholder="Nome do responsável...">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary me-2" onclick="limparFiltros()">
+                                <i class="fas fa-times"></i> Limpar
+                            </button>
+                            <button class="btn btn-primary" onclick="aplicarFiltros()">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Atribuições -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list"></i>
+                        Atribuições de Tarefas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="tabela-atribuicoes">
+                            <thead>
+                                <tr>
+                                    <th>Empresa</th>
+                                    <th>Tributação</th>
+                                    <th>Tarefa</th>
+                                    <th>Responsável</th>
+                                    <th>Período</th>
+                                    <th>Data Atribuição</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for atribuicao in atribuicoes %}
+                                <tr data-empresa="{{ atribuicao.empresa_id }}" 
+                                    data-periodo="{{ atribuicao.periodo_execucao_id }}" 
+                                    data-status="{{ atribuicao.status }}"
+                                    data-responsavel="{{ atribuicao.responsavel.nome }}">
+                                    <td>{{ atribuicao.empresa.nome }}</td>
+                                    <td>{{ atribuicao.tributacao.nome }}</td>
+                                    <td>{{ atribuicao.tarefa.nome }}</td>
+                                    <td>{{ atribuicao.responsavel.nome }}</td>
+                                        <td>{{ atribuicao.periodo_execucao.ano }}/{{ "%02d"|format(atribuicao.periodo_execucao.mes) }}</td>
+                                    <td>{{ atribuicao.data_atribuicao|br_date }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 
+                                            'warning' if atribuicao.status == 'pendente' else
+                                            'info' if atribuicao.status == 'em_andamento' else
+                                            'success' if atribuicao.status == 'concluida' else
+                                            'danger' if atribuicao.status == 'retificada' else
+                                            'secondary'
+                                        }}">
+                                            {{ atribuicao.status.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-info" onclick="verDetalhesAtribuicao({{ atribuicao.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if atribuicao.status == 'pendente' %}
+                                        <button class="btn btn-sm btn-outline-warning" onclick="editarAtribuicao({{ atribuicao.id }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="cancelarAtribuicao({{ atribuicao.id }})">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if not atribuicoes %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhuma atribuição encontrada</h5>
+                        <p class="text-muted">Crie períodos e configure responsáveis padrão para gerar atribuições automaticamente.</p>
+                        <button class="btn btn-primary" onclick="mostrarModalCriarAtribuicoes()">
+                            <i class="fas fa-magic"></i> Criar Atribuições
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para criar atribuições automáticas -->
+<div class="modal fade" id="modalCriarAtribuicoes" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Criar Atribuições Automáticas</h5>
+                <button type="button" class="btn-close" onclick="fecharModalCriarAtribuicoes()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCriarAtribuicoes">
+                    <div class="mb-3">
+                        <label for="empresa-atribuicoes" class="form-label">Empresa *</label>
+                        <select class="form-control" id="empresa-atribuicoes" required>
+                            <option value="">Selecione uma empresa</option>
+                            {% for empresa in empresas %}
+                            <option value="{{ empresa.id }}">{{ empresa.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="periodo-atribuicoes" class="form-label">Período *</label>
+                        <select class="form-control" id="periodo-atribuicoes" required>
+                            <option value="">Selecione um período</option>
+                            {% for periodo in periodos %}
+                            <option value="{{ periodo.id }}" data-empresa="{{ periodo.empresa_id }}">
+                                {{ periodo.empresa.nome }} - {{ periodo.ano }}/{{ "%02d"|format(periodo.mes) }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tributacao-atribuicoes" class="form-label">Tributação *</label>
+                        <select class="form-control" id="tributacao-atribuicoes" required>
+                            <option value="">Selecione uma tributação</option>
+                            <!-- Será preenchido dinamicamente baseado na empresa selecionada -->
+                        </select>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Como funciona:</strong><br>
+                        O sistema irá buscar todos os responsáveis padrão configurados para a tributação selecionada e criar atribuições automaticamente para o período escolhido.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalCriarAtribuicoes()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="criarAtribuicoesAutomaticas()">
+                    <i class="fas fa-magic"></i> Criar Atribuições
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalhes da atribuição -->
+<div class="modal fade" id="modalDetalhesAtribuicao" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes da Atribuição</h5>
+                <button type="button" class="btn-close" onclick="fecharModalDetalhes()"></button>
+            </div>
+            <div class="modal-body" id="conteudo-detalhes">
+                <!-- Conteúdo será carregado dinamicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalDetalhes()">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar filtro de período baseado na empresa
+    document.getElementById('empresa-atribuicoes').addEventListener('change', function() {
+        const empresaId = this.value;
+        const periodoSelect = document.getElementById('periodo-atribuicoes');
+        const options = periodoSelect.querySelectorAll('option[data-empresa]');
+        
+        // Mostrar apenas períodos da empresa selecionada
+        options.forEach(option => {
+            option.style.display = option.dataset.empresa === empresaId ? '' : 'none';
+        });
+        
+        // Limpar seleção se não for da empresa selecionada
+        if (periodoSelect.value && periodoSelect.querySelector(`option[value="${periodoSelect.value}"]`).dataset.empresa !== empresaId) {
+            periodoSelect.value = '';
+        }
+    });
+});
+
+function mostrarModalCriarAtribuicoes() {
+    document.getElementById('formCriarAtribuicoes').reset();
+    document.getElementById('modalCriarAtribuicoes').style.display = 'block';
+}
+
+function fecharModalCriarAtribuicoes() {
+    document.getElementById('modalCriarAtribuicoes').style.display = 'none';
+    document.getElementById('formCriarAtribuicoes').reset();
+}
+
+function criarAtribuicoesAutomaticas() {
+    const empresaId = document.getElementById('empresa-atribuicoes').value;
+    const periodoId = document.getElementById('periodo-atribuicoes').value;
+    const tributacaoId = document.getElementById('tributacao-atribuicoes').value;
+    
+    if (!empresaId || !periodoId || !tributacaoId) {
+        showAlertModal('Preencha todos os campos obrigatórios', 'error', 'Erro');
+        return;
+    }
+    
+    fetch('/sistema-completo-tarefas/api/criar-atribuicoes-automaticas', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            empresa_id: parseInt(empresaId),
+            periodo_id: parseInt(periodoId),
+            tributacao_id: parseInt(tributacaoId)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlertModal(data.message, 'success', 'Sucesso');
+            fecharModalCriarAtribuicoes();
+            location.reload();
+        } else {
+            showAlertModal(data.message, 'error', 'Erro');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showAlertModal('Erro ao criar atribuições', 'error', 'Erro');
+    });
+}
+
+function verDetalhesAtribuicao(atribuicaoId) {
+    // Implementar visualização de detalhes
+    showAlertModal('Funcionalidade em desenvolvimento', 'info', 'Info');
+}
+
+function editarAtribuicao(atribuicaoId) {
+    // Implementar edição
+    showAlertModal('Funcionalidade em desenvolvimento', 'info', 'Info');
+}
+
+function cancelarAtribuicao(atribuicaoId) {
+    showConfirmModal(
+        'Tem certeza que deseja cancelar esta atribuição?',
+        'Cancelar Atribuição',
+        () => {
+            showAlertModal('Funcionalidade em desenvolvimento', 'info', 'Info');
+        }
+    );
+}
+
+function aplicarFiltros() {
+    const filtroEmpresa = document.getElementById('filtro-empresa').value;
+    const filtroPeriodo = document.getElementById('filtro-periodo').value;
+    const filtroStatus = document.getElementById('filtro-status').value;
+    const filtroResponsavel = document.getElementById('filtro-responsavel').value.toLowerCase();
+    
+    const linhas = document.querySelectorAll('#tabela-atribuicoes tbody tr');
+    let totalVisiveis = 0;
+    
+    linhas.forEach(linha => {
+        let mostrar = true;
+        
+        if (filtroEmpresa && linha.dataset.empresa !== filtroEmpresa) {
+            mostrar = false;
+        }
+        if (filtroPeriodo && linha.dataset.periodo !== filtroPeriodo) {
+            mostrar = false;
+        }
+        if (filtroStatus && linha.dataset.status !== filtroStatus) {
+            mostrar = false;
+        }
+        if (filtroResponsavel && !linha.dataset.responsavel.toLowerCase().includes(filtroResponsavel)) {
+            mostrar = false;
+        }
+        
+        linha.style.display = mostrar ? '' : 'none';
+        if (mostrar) totalVisiveis++;
+    });
+    
+    // Atualizar contadores
+    document.getElementById('total-atribuicoes').textContent = totalVisiveis;
+}
+
+function limparFiltros() {
+    document.getElementById('filtro-empresa').value = '';
+    document.getElementById('filtro-periodo').value = '';
+    document.getElementById('filtro-status').value = '';
+    document.getElementById('filtro-responsavel').value = '';
+    
+    const linhas = document.querySelectorAll('#tabela-atribuicoes tbody tr');
+    linhas.forEach(linha => {
+        linha.style.display = '';
+    });
+    
+    // Restaurar contadores originais
+    document.getElementById('total-atribuicoes').textContent = {{ atribuicoes|length }};
+    document.getElementById('atribuicoes-pendentes').textContent = {{ atribuicoes|selectattr('status', 'equalto', 'pendente')|list|length }};
+    document.getElementById('atribuicoes-concluidas').textContent = {{ atribuicoes|selectattr('status', 'equalto', 'concluida')|list|length }};
+    document.getElementById('atribuicoes-retificadas').textContent = {{ atribuicoes|selectattr('status', 'equalto', 'retificada')|list|length }};
+}
+
+function fecharModalDetalhes() {
+    document.getElementById('modalDetalhesAtribuicao').style.display = 'none';
+}
+</script>
+{% endblock %}

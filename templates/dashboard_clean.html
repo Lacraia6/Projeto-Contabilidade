@@ -20,7 +20,7 @@
     <div class="form-row">
       <div class="form-group">
         <label for="periodo">Período (MM/AAAA)</label>
-        <input type="text" id="periodo" name="periodo" value="{{ periodo_atual|br_period if periodo_atual else '08/2025' }}" 
+        <input type="text" id="periodo" name="periodo" value="{{ periodo_atual|br_period if periodo_atual else '{{ get_previous_period() }}' }}" 
                placeholder="Ex: 01/2025" required pattern="[0-9]{2}/[0-9]{4}" 
                title="Digite o período no formato MM/AAAA">
         <small class="info-text">Formato: MM/AAAA (ex: 01/2025)</small>

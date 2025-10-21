@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}Minhas Tarefas - Sistema Completo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-list-check text-primary"></i>
+                    Minhas Tarefas
+                </h1>
+                <div class="text-muted">
+                    <i class="fas fa-user"></i> {{ usuario.nome }}
+                </div>
+            </div>
+
+            <!-- Cards de Estatísticas -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ tarefas_pendentes|length }}</h4>
+                                    <p class="card-text">Pendentes</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ tarefas_em_andamento|length }}</h4>
+                                    <p class="card-text">Em Andamento</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-play fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ tarefas_concluidas|length }}</h4>
+                                    <p class="card-text">Concluídas</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ tarefas_retificadas|length }}</h4>
+                                    <p class="card-text">Retificadas</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navegação por Abas -->
+            <ul class="nav nav-tabs" id="tarefasTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="pendentes-tab" data-bs-toggle="tab" data-bs-target="#pendentes" type="button" role="tab">
+                        <i class="fas fa-clock"></i> Pendentes ({{ tarefas_pendentes|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="andamento-tab" data-bs-toggle="tab" data-bs-target="#andamento" type="button" role="tab">
+                        <i class="fas fa-play"></i> Em Andamento ({{ tarefas_em_andamento|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="concluidas-tab" data-bs-toggle="tab" data-bs-target="#concluidas" type="button" role="tab">
+                        <i class="fas fa-check-circle"></i> Concluídas ({{ tarefas_concluidas|length }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="retificadas-tab" data-bs-toggle="tab" data-bs-target="#retificadas" type="button" role="tab">
+                        <i class="fas fa-exclamation-triangle"></i> Retificadas ({{ tarefas_retificadas|length }})
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="tarefasTabsContent">
+                <!-- Aba Tarefas Pendentes -->
+                <div class="tab-pane fade show active" id="pendentes" role="tabpanel">
+                    <div class="mt-4">
+                        {% if tarefas_pendentes %}
+                        <div class="row">
+                            {% for atribuicao in tarefas_pendentes %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-warning">
+                                    <div class="card-header bg-warning text-dark">
+                                        <h6 class="card-title mb-0">
+                                            <i class="fas fa-tasks"></i> {{ atribuicao.tarefa.nome }}
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">
+                                            <strong>Empresa:</strong> {{ atribuicao.empresa.nome }}<br>
+                                            <strong>Tributação:</strong> {{ atribuicao.tributacao.nome }}<br>
+                                            <strong>Período:</strong> {{ atribuicao.periodo_execucao.ano }}/{{ "%02d"|format(atribuicao.periodo_execucao.mes) }}<br>
+                                            <strong>Data Atribuição:</strong> {{ atribuicao.data_atribuicao|br_date }}<br>
+                                            {% if atribuicao.observacoes %}
+                                            <strong>Observações:</strong> {{ atribuicao.observacoes }}
+                                            {% endif %}
+                                        </p>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-success btn-sm" onclick="executarTarefa({{ atribuicao.id }}, 'concluida')">
+                                                <i class="fas fa-check"></i> Concluir
+                                            </button>
+                                            <button class="btn btn-warning btn-sm" onclick="executarTarefa({{ atribuicao.id }}, 'retificada')">
+                                                <i class="fas fa-edit"></i> Retificar
+                                            </button>
+                                            <button class="btn btn-info btn-sm" onclick="verDetalhesTarefa({{ atribuicao.id }})">
+                                                <i class="fas fa-eye"></i> Detalhes
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-success text-center">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <h5>Parabéns!</h5>
+                            <p>Você não tem tarefas pendentes no momento.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Aba Em Andamento -->
+                <div class="tab-pane fade" id="andamento" role="tabpanel">
+                    <div class="mt-4">
+                        {% if tarefas_em_andamento %}
+                        <div class="row">
+                            {% for atribuicao in tarefas_em_andamento %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-info">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="card-title mb-0">
+                                            <i class="fas fa-play"></i> {{ atribuicao.tarefa.nome }}
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">
+                                            <strong>Empresa:</strong> {{ atribuicao.empresa.nome }}<br>
+                                            <strong>Tributação:</strong> {{ atribuicao.tributacao.nome }}<br>
+                                            <strong>Período:</strong> {{ atribuicao.periodo_execucao.ano }}/{{ atribuicao.periodo_execucao.mes|string.zfill(2) }}
+                                        </p>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-success btn-sm" onclick="executarTarefa({{ atribuicao.id }}, 'concluida')">
+                                                <i class="fas fa-check"></i> Finalizar
+                                            </button>
+                                            <button class="btn btn-info btn-sm" onclick="verDetalhesTarefa({{ atribuicao.id }})">
+                                                <i class="fas fa-eye"></i> Detalhes
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle fa-3x mb-3"></i>
+                            <h5>Nenhuma tarefa em andamento</h5>
+                            <p>Você não tem tarefas em andamento no momento.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Aba Concluídas -->
+                <div class="tab-pane fade" id="concluidas" role="tabpanel">
+                    <div class="mt-4">
+                        {% if tarefas_concluidas %}
+                        <div class="row">
+                            {% for atribuicao in tarefas_concluidas %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="card-title mb-0">
+                                            <i class="fas fa-check-circle"></i> {{ atribuicao.tarefa.nome }}
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">
+                                            <strong>Empresa:</strong> {{ atribuicao.empresa.nome }}<br>
+                                            <strong>Tributação:</strong> {{ atribuicao.tributacao.nome }}<br>
+                                            <strong>Período:</strong> {{ atribuicao.periodo_execucao.ano }}/{{ "%02d"|format(atribuicao.periodo_execucao.mes) }}<br>
+                                            <strong>Data Execução:</strong> {{ atribuicao.execucoes[0].data_execucao|br_date if atribuicao.execucoes else 'N/A' }}
+                                        </p>
+                                        <button class="btn btn-info btn-sm" onclick="verDetalhesTarefa({{ atribuicao.id }})">
+                                            <i class="fas fa-eye"></i> Ver Detalhes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-secondary text-center">
+                            <i class="fas fa-tasks fa-3x mb-3"></i>
+                            <h5>Nenhuma tarefa concluída</h5>
+                            <p>Você ainda não concluiu nenhuma tarefa.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Aba Retificadas -->
+                <div class="tab-pane fade" id="retificadas" role="tabpanel">
+                    <div class="mt-4">
+                        {% if tarefas_retificadas %}
+                        <div class="row">
+                            {% for atribuicao in tarefas_retificadas %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-danger">
+                                    <div class="card-header bg-danger text-white">
+                                        <h6 class="card-title mb-0">
+                                            <i class="fas fa-exclamation-triangle"></i> {{ atribuicao.tarefa.nome }}
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">
+                                            <strong>Empresa:</strong> {{ atribuicao.empresa.nome }}<br>
+                                            <strong>Tributação:</strong> {{ atribuicao.tributacao.nome }}<br>
+                                            <strong>Período:</strong> {{ atribuicao.periodo_execucao.ano }}/{{ "%02d"|format(atribuicao.periodo_execucao.mes) }}<br>
+                                            {% if atribuicao.execucoes %}
+                                            <strong>Motivo Retificação:</strong> {{ atribuicao.execucoes[0].observacoes or 'Não informado' }}
+                                            {% endif %}
+                                        </p>
+                                        <button class="btn btn-info btn-sm" onclick="verDetalhesTarefa({{ atribuicao.id }})">
+                                            <i class="fas fa-eye"></i> Ver Detalhes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-success text-center">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <h5>Excelente!</h5>
+                            <p>Você não tem tarefas retificadas. Continue assim!</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para executar tarefa -->
+<div class="modal fade" id="modalExecutarTarefa" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tituloModalExecucao">Executar Tarefa</h5>
+                <button type="button" class="btn-close" onclick="fecharModalExecutar()"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formExecutarTarefa">
+                    <input type="hidden" id="atribuicao-id" value="">
+                    <input type="hidden" id="status-execucao" value="">
+                    
+                    <div class="mb-3">
+                        <label for="observacoes-execucao" class="form-label">Observações</label>
+                        <textarea class="form-control" id="observacoes-execucao" rows="4" 
+                                  placeholder="Descreva como a tarefa foi executada, problemas encontrados, ou outras observações relevantes..."></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="info-execucao">
+                            <!-- Informação será preenchida dinamicamente -->
+                        </span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalExecutar()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="confirmarExecucao()">
+                    <i class="fas fa-save"></i> Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para detalhes da tarefa -->
+<div class="modal fade" id="modalDetalhesTarefa" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes da Tarefa</h5>
+                <button type="button" class="btn-close" onclick="fecharModalDetalhes()"></button>
+            </div>
+            <div class="modal-body" id="conteudo-detalhes-tarefa">
+                <!-- Conteúdo será carregado dinamicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalDetalhes()">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function executarTarefa(atribuicaoId, status) {
+    document.getElementById('atribuicao-id').value = atribuicaoId;
+    document.getElementById('status-execucao').value = status;
+    
+    const titulo = status === 'concluida' ? 'Concluir Tarefa' : 'Retificar Tarefa';
+    const info = status === 'concluida' ? 
+        'Você está marcando esta tarefa como concluída. Descreva como foi executada.' :
+        'Você está retificando esta tarefa. Explique o motivo da retificação.';
+    
+    document.getElementById('tituloModalExecucao').textContent = titulo;
+    document.getElementById('info-execucao').textContent = info;
+    document.getElementById('observacoes-execucao').value = '';
+    
+    document.getElementById('modalExecutarTarefa').style.display = 'block';
+}
+
+function fecharModalExecutar() {
+    document.getElementById('modalExecutarTarefa').style.display = 'none';
+    document.getElementById('formExecutarTarefa').reset();
+}
+
+function confirmarExecucao() {
+    const atribuicaoId = document.getElementById('atribuicao-id').value;
+    const status = document.getElementById('status-execucao').value;
+    const observacoes = document.getElementById('observacoes-execucao').value;
+    
+    if (!atribuicaoId || !status) {
+        showAlertModal('Dados inválidos', 'error', 'Erro');
+        return;
+    }
+    
+    fetch('/sistema-completo-tarefas/api/executar-tarefa', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            atribuicao_id: parseInt(atribuicaoId),
+            status: status,
+            observacoes: observacoes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlertModal(data.message, 'success', 'Sucesso');
+            fecharModalExecutar();
+            location.reload();
+        } else {
+            showAlertModal(data.message, 'error', 'Erro');
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        showAlertModal('Erro ao executar tarefa', 'error', 'Erro');
+    });
+}
+
+function verDetalhesTarefa(atribuicaoId) {
+    // Implementar visualização de detalhes
+    document.getElementById('conteudo-detalhes-tarefa').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+            <p>Carregando detalhes da tarefa...</p>
+        </div>
+    `;
+    
+    document.getElementById('modalDetalhesTarefa').style.display = 'block';
+    
+    // Simular carregamento (implementar API real posteriormente)
+    setTimeout(() => {
+        document.getElementById('conteudo-detalhes-tarefa').innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                Funcionalidade de detalhes em desenvolvimento.
+            </div>
+        `;
+    }, 1000);
+}
+
+function fecharModalDetalhes() {
+    document.getElementById('modalDetalhesTarefa').style.display = 'none';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Busca - Contabilidade</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #366092;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #9ca3af;
+            font-size: 1.1rem;
+        }
+
+        .search-section {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #4a5568;
+        }
+
+        .search-section h2 {
+            color: #366092;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-section h2 i {
+            font-size: 1.5rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            background: #1a1a1a;
+            color: #ffffff;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #366092;
+            box-shadow: 0 0 0 3px rgba(54, 96, 146, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .search-button {
+            background: #366092;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s;
+        }
+
+        .search-button:hover {
+            background: #2c5282;
+        }
+
+        .search-button:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .result-item {
+            background: #3a3a3a;
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .result-item:hover {
+            background: #4a5568;
+            border-color: #366092;
+        }
+
+        .result-item.selected {
+            background: #1e3a8a;
+            border-color: #366092;
+        }
+
+        .result-name {
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 5px;
+        }
+
+        .result-details {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #9ca3af;
+            padding: 20px;
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-results {
+            text-align: center;
+            color: #9ca3af;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .error {
+            background: #7f1d1d;
+            color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .selected-items {
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #4a5568;
+        }
+
+        .selected-items h2 {
+            color: #366092;
+            margin-bottom: 15px;
+        }
+
+        .selected-item {
+            background: #1e3a8a;
+            color: #ffffff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin: 5px;
+            display: inline-block;
+            font-size: 14px;
+        }
+
+        .selected-item .remove {
+            margin-left: 8px;
+            cursor: pointer;
+            color: #ef4444;
+        }
+
+        .selected-item .remove:hover {
+            color: #dc2626;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-search"></i> Sistema de Busca</h1>
+            <p>Sistema de busca integrado para empresas, tarefas, colaboradores e setores</p>
+        </div>
+
+        <div class="grid">
+            <!-- Busca de Empresas -->
+            <div class="search-section">
+                <h2><i class="fas fa-building"></i> Empresas</h2>
+                <input type="text" id="empresa-search" class="search-input" placeholder="Digite o nome ou código da empresa...">
+                <button onclick="searchEmpresas()" class="search-button">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+                <div id="empresa-results" class="results"></div>
+            </div>
+
+            <!-- Busca de Tarefas -->
+            <div class="search-section">
+                <h2><i class="fas fa-tasks"></i> Tarefas</h2>
+                <input type="text" id="tarefa-search" class="search-input" placeholder="Digite o nome da tarefa...">
+                <button onclick="searchTarefas()" class="search-button">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+                <div id="tarefa-results" class="results"></div>
+            </div>
+
+            <!-- Busca de Colaboradores -->
+            <div class="search-section">
+                <h2><i class="fas fa-users"></i> Colaboradores</h2>
+                <input type="text" id="colaborador-search" class="search-input" placeholder="Digite o nome do colaborador...">
+                <button onclick="searchColaboradores()" class="search-button">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+                <div id="colaborador-results" class="results"></div>
+            </div>
+
+            <!-- Busca de Setores -->
+            <div class="search-section">
+                <h2><i class="fas fa-sitemap"></i> Setores</h2>
+                <input type="text" id="setor-search" class="search-input" placeholder="Digite o nome do setor...">
+                <button onclick="searchSetores()" class="search-button">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+                <div id="setor-results" class="results"></div>
+            </div>
+        </div>
+
+        <!-- Itens Selecionados -->
+        <div class="selected-items">
+            <h2><i class="fas fa-check-circle"></i> Itens Selecionados</h2>
+            <div id="selected-items"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedItems = {
+            empresas: [],
+            tarefas: [],
+            colaboradores: [],
+            setores: []
+        };
+
+        // Função para buscar empresas
+        async function searchEmpresas() {
+            const term = document.getElementById('empresa-search').value;
+            const resultsDiv = document.getElementById('empresa-results');
+            
+            if (!term.trim()) {
+                resultsDiv.innerHTML = '<div class="no-results">Digite um termo para buscar</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Buscando...</div>';
+
+            try {
+                const response = await fetch(`/api/search-simple/empresas?q=${encodeURIComponent(term)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults('empresa', data.results, resultsDiv);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Erro: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Erro na busca: ${error.message}</div>`;
+            }
+        }
+
+        // Função para buscar tarefas
+        async function searchTarefas() {
+            const term = document.getElementById('tarefa-search').value;
+            const resultsDiv = document.getElementById('tarefa-results');
+            
+            if (!term.trim()) {
+                resultsDiv.innerHTML = '<div class="no-results">Digite um termo para buscar</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Buscando...</div>';
+
+            try {
+                const response = await fetch(`/api/search-simple/tarefas?q=${encodeURIComponent(term)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults('tarefa', data.results, resultsDiv);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Erro: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Erro na busca: ${error.message}</div>`;
+            }
+        }
+
+        // Função para buscar colaboradores
+        async function searchColaboradores() {
+            const term = document.getElementById('colaborador-search').value;
+            const resultsDiv = document.getElementById('colaborador-results');
+            
+            if (!term.trim()) {
+                resultsDiv.innerHTML = '<div class="no-results">Digite um termo para buscar</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Buscando...</div>';
+
+            try {
+                const response = await fetch(`/api/search-simple/colaboradores?q=${encodeURIComponent(term)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults('colaborador', data.results, resultsDiv);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Erro: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Erro na busca: ${error.message}</div>`;
+            }
+        }
+
+        // Função para buscar setores
+        async function searchSetores() {
+            const term = document.getElementById('setor-search').value;
+            const resultsDiv = document.getElementById('setor-results');
+            
+            if (!term.trim()) {
+                resultsDiv.innerHTML = '<div class="no-results">Digite um termo para buscar</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Buscando...</div>';
+
+            try {
+                const response = await fetch(`/api/search-simple/setores?q=${encodeURIComponent(term)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults('setor', data.results, resultsDiv);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Erro: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Erro na busca: ${error.message}</div>`;
+            }
+        }
+
+        // Função para exibir resultados
+        function displayResults(type, results, container) {
+            if (results.length === 0) {
+                container.innerHTML = '<div class="no-results">Nenhum resultado encontrado</div>';
+                return;
+            }
+
+            let html = '';
+            results.forEach(item => {
+                html += `
+                    <div class="result-item" onclick="selectItem('${type}', ${item.id}, '${item.nome.replace(/'/g, "\\'")}')">
+                        <div class="result-name">${item.nome}</div>
+                        <div class="result-details">
+                            ${item.descricao || ''}
+                            ${item.tipo ? ` • ${item.tipo}` : ''}
+                            ${item.status ? ` • ${item.status}` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Função para selecionar item
+        function selectItem(type, id, nome) {
+            if (!selectedItems[type + 's'].find(item => item.id === id)) {
+                selectedItems[type + 's'].push({ id, nome });
+                updateSelectedItems();
+            }
+        }
+
+        // Função para remover item selecionado
+        function removeSelectedItem(type, id) {
+            selectedItems[type + 's'] = selectedItems[type + 's'].filter(item => item.id !== id);
+            updateSelectedItems();
+        }
+
+        // Função para atualizar exibição dos itens selecionados
+        function updateSelectedItems() {
+            const container = document.getElementById('selected-items');
+            let html = '';
+
+            Object.keys(selectedItems).forEach(key => {
+                if (selectedItems[key].length > 0) {
+                    const typeName = key.charAt(0).toUpperCase() + key.slice(1, -1); // Remove 's' do final
+                    html += `<h3 style="color: #366092; margin: 15px 0 10px 0;">${typeName}s:</h3>`;
+                    
+                    selectedItems[key].forEach(item => {
+                        html += `
+                            <span class="selected-item">
+                                ${item.nome}
+                                <span class="remove" onclick="removeSelectedItem('${key.slice(0, -1)}', ${item.id})">×</span>
+                            </span>
+                        `;
+                    });
+                }
+            });
+
+            if (html === '') {
+                html = '<p style="color: #9ca3af; font-style: italic;">Nenhum item selecionado</p>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Busca automática ao pressionar Enter
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = ['empresa-search', 'tarefa-search', 'colaborador-search', 'setor-search'];
+            
+            inputs.forEach(inputId => {
+                document.getElementById(inputId).addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const searchFunction = inputId.replace('-search', '');
+                        if (searchFunction === 'empresa') searchEmpresas();
+                        else if (searchFunction === 'tarefa') searchTarefas();
+                        else if (searchFunction === 'colaborador') searchColaboradores();
+                        else if (searchFunction === 'setor') searchSetores();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

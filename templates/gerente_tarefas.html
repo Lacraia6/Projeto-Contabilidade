@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+
+{% block title %}Gerenciamento de Tarefas{% endblock %}
+
+{% block content %}
+<div style="padding: 30px; max-width: 1400px; margin: 0 auto; min-height: 100vh;">
+    
+    <!-- Header -->
+    <div style="margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
+        <h1 style="color: var(--text-primary); margin-bottom: 10px;">
+            <i class="fas fa-tasks"></i> Gerenciamento de Tarefas
+        </h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            Crie tarefas e vincule responsáveis às empresas
+        </p>
+    </div>
+
+    <!-- Botões de Ação -->
+    <div style="margin-bottom: 30px; display: flex; gap: 15px;">
+        <button id="btnCriarTarefa" onclick="console.log('ONCLICK: Criar Tarefa'); abrirModalCriarTarefa();" style="background-color: #4bb543; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; pointer-events: auto; z-index: 9999; position: relative;">
+            <i class="fas fa-plus"></i> Nova Tarefa
+        </button>
+        <button id="btnVincularResp" onclick="console.log('ONCLICK: Vincular Resp'); abrirModalVincularResp();" style="background-color: #9eb6d8; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; pointer-events: auto; z-index: 9999; position: relative;">
+            <i class="fas fa-link"></i> Vincular Responsável
+        </button>
+    </div>
+
+    <!-- Lista de Tarefas -->
+    <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px;">
+        <h3 style="color: var(--text-primary); margin-bottom: 20px;">
+            <i class="fas fa-list"></i> Minhas Tarefas
+        </h3>
+        
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border-color);">Nome</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border-color);">Tipo</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border-color);">Setor</th>
+                    <th style="padding: 12px; text-align: left; border: 1px solid var(--border-color);">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="listaTarefas">
+                <tr>
+                    <td colspan="4" style="padding: 20px; text-align: center; color: var(--text-secondary);">
+                        Carregando tarefas...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- Modal Criar Tarefa (SIMPLES E FUNCIONAL) -->
+<div id="modalCriarTarefa" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background-color: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 8px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+        
+        <!-- Header -->
+        <div style="background-color: var(--bg-secondary); padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="color: var(--text-primary); margin: 0;">
+                <i class="fas fa-plus"></i> Nova Tarefa
+            </h3>
+            <button onclick="fecharModalCriarTarefa()" style="background: none; border: none; color: var(--text-primary); font-size: 24px; cursor: pointer; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                &times;
+            </button>
+        </div>
+        
+        <!-- Body -->
+        <div style="padding: 20px;">
+            <div style="margin-bottom: 15px;">
+                <label style="color: var(--text-primary); font-weight: 500; margin-bottom: 6px; display: block;">Nome da Tarefa *</label>
+                <input type="text" id="novaTarefaNome" style="width: 100%; padding: 10px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box;" placeholder="Ex: Apuração ICMS">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: var(--text-primary); font-weight: 500; margin-bottom: 6px; display: block;">Tipo *</label>
+                <select id="novaTarefaTipo" style="width: 100%; padding: 10px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box;">
+                    <option value="">Selecione o tipo</option>
+                    <option value="Mensal">Mensal</option>
+                    <option value="Anual">Anual</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: var(--text-primary); font-weight: 500; margin-bottom: 6px; display: block;">Setor *</label>
+                <select id="novaTarefaSetor" style="width: 100%; padding: 10px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box;">
+                    <option value="">Selecione o setor</option>
+                    {% for setor in setores %}
+                    <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="color: var(--text-primary); font-weight: 500; margin-bottom: 6px; display: block;">Descrição</label>
+                <textarea id="novaTarefaDescricao" rows="3" style="width: 100%; padding: 10px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; resize: vertical;" placeholder="Descrição opcional..."></textarea>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background-color: var(--bg-secondary); padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="fecharModalCriarTarefa()" style="background-color: var(--secondary-color); color: var(--text-primary); border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                Cancelar
+            </button>
+            <button onclick="salvarNovaTarefa()" style="background-color: #4bb543; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                <i class="fas fa-save"></i> Criar Tarefa
+            </button>
+        </div>
+        
+    </div>
+</div>
+
+<!-- Modal Vincular Responsável (SIMPLES E FUNCIONAL) -->
+<div id="modalVincularResp" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background-color: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 8px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto;">
+        
+        <!-- Header -->
+        <div style="background-color: var(--bg-secondary); padding: 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="color: var(--text-primary); margin: 0;">
+                <i class="fas fa-link"></i> Vincular Responsável
+            </h3>
+            <button onclick="fecharModalVincularResp()" style="background: none; border: none; color: var(--text-primary); font-size: 24px; cursor: pointer; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                &times;
+            </button>
+        </div>
+        
+        <!-- Body -->
+        <div style="padding: 20px;">
+            
+            <!-- Passo 1: Empresa -->
+            <div style="margin-bottom: 20px; padding: 15px; background-color: var(--bg-secondary); border-radius: 6px;">
+                <h6 style="color: var(--text-primary); margin-bottom: 10px;">
+                    <i class="fas fa-building"></i> 1. Selecionar Empresa
+                </h6>
+                <input type="text" id="buscaEmpresa" placeholder="Digite o nome da empresa..." style="width: 100%; padding: 10px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box;">
+                <div id="empresaSelecionada" style="margin-top: 10px; padding: 8px; background-color: var(--bg-hover); border-radius: 4px; color: var(--text-primary); display: none;">
+                    Empresa selecionada: <strong id="nomeEmpresaSelecionada"></strong>
+                </div>
+            </div>
+            
+            <!-- Passo 2: Tarefas -->
+            <div id="passo2" style="display: none; margin-bottom: 20px; padding: 15px; background-color: var(--bg-secondary); border-radius: 6px;">
+                <h6 style="color: var(--text-primary); margin-bottom: 10px;">
+                    <i class="fas fa-tasks"></i> 2. Selecionar Tarefas
+                </h6>
+                <input type="text" id="buscaTarefas" placeholder="Digite o nome da tarefa..." style="width: 100%; padding: 10px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box;">
+                <div id="tarefasSelecionadas" style="margin-top: 10px;">
+                    <!-- Tarefas selecionadas aparecerão aqui -->
+                </div>
+            </div>
+            
+            <!-- Passo 3: Responsável -->
+            <div id="passo3" style="display: none; margin-bottom: 20px; padding: 15px; background-color: var(--bg-secondary); border-radius: 6px;">
+                <h6 style="color: var(--text-primary); margin-bottom: 10px;">
+                    <i class="fas fa-user"></i> 3. Selecionar Responsável
+                </h6>
+                <input type="text" id="buscaResponsavel" placeholder="Digite o nome do responsável..." style="width: 100%; padding: 10px; background-color: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box;">
+                <div id="responsavelSelecionado" style="margin-top: 10px; padding: 8px; background-color: var(--bg-hover); border-radius: 4px; color: var(--text-primary); display: none;">
+                    Responsável selecionado: <strong id="nomeResponsavelSelecionado"></strong>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- Footer -->
+        <div style="background-color: var(--bg-secondary); padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="fecharModalVincularResp()" style="background-color: var(--secondary-color); color: var(--text-primary); border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                Cancelar
+            </button>
+            <button id="btnConfirmarVinculacao" onclick="salvarVinculacao()" disabled style="background-color: #9eb6d8; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                <i class="fas fa-save"></i> Vincular
+            </button>
+        </div>
+        
+    </div>
+</div>
+
+<script>
+console.log('📜 Script carregado');
+
+// Teste se JavaScript está funcionando
+try {
+    console.log('🧪 Testando JavaScript básico...');
+    const teste = document.createElement('div');
+    console.log('✅ DOM manipulation funciona');
+} catch (error) {
+    console.error('❌ Erro no JavaScript básico:', error);
+}
+
+// Variáveis globais
+let empresaIdSelecionada = null;
+let tarefasIdsSelecionadas = [];
+let responsavelIdSelecionado = null;
+
+console.log('📋 Variáveis globais definidas');
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Página de tarefas carregada');
+    
+    // Verificar se botões existem
+    const btnCriar = document.getElementById('btnCriarTarefa');
+    const btnVincular = document.getElementById('btnVincularResp');
+    
+    console.log('📱 Botão Criar Tarefa:', btnCriar);
+    console.log('📱 Botão Vincular:', btnVincular);
+    
+    // Configurar botões
+    if (btnCriar) {
+        btnCriar.addEventListener('click', function() {
+            console.log('🖱️ CLIQUE: Nova Tarefa');
+            abrirModalCriarTarefa();
+        });
+        console.log('✅ Event listener configurado para btnCriarTarefa');
+    } else {
+        console.error('❌ btnCriarTarefa não encontrado!');
+    }
+    
+    if (btnVincular) {
+        btnVincular.addEventListener('click', function() {
+            console.log('🖱️ CLIQUE: Vincular Responsável');
+            abrirModalVincularResp();
+        });
+        console.log('✅ Event listener configurado para btnVincularResp');
+    } else {
+        console.error('❌ btnVincularResp não encontrado!');
+    }
+    
+    // Carregar tarefas
+    console.log('📋 Iniciando carregamento de tarefas');
+    carregarTarefas();
+    
+    console.log('🎉 Inicialização completa!');
+});
+
+// ===== MODAL CRIAR TAREFA =====
+function abrirModalCriarTarefa() {
+    console.log('📝 Abrindo modal criar tarefa');
+    const modal = document.getElementById('modalCriarTarefa');
+    console.log('📱 Modal encontrado:', modal);
+    
+    if (!modal) {
+        console.error('❌ Modal não encontrado!');
+        alert('Erro: Modal não encontrado!');
+        return;
+    }
+    
+    // Forçar exibição
+    modal.style.display = 'flex';
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.zIndex = '99999';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    
+    console.log('✅ Modal exibido');
+    console.log('📊 Modal display:', modal.style.display);
+    console.log('📊 Modal z-index:', modal.style.zIndex);
+    console.log('📊 Modal visibility:', modal.style.visibility);
+}
+
+function fecharModalCriarTarefa() {
+    console.log('🚪 Fechando modal criar tarefa');
+    const modal = document.getElementById('modalCriarTarefa');
+    modal.style.display = 'none';
+    // Limpar campos
+    document.getElementById('novaTarefaNome').value = '';
+    document.getElementById('novaTarefaTipo').value = '';
+    document.getElementById('novaTarefaSetor').value = '';
+    document.getElementById('novaTarefaDescricao').value = '';
+}
+
+function salvarNovaTarefa() {
+    console.log('💾 Salvando nova tarefa');
+    
+    const nome = document.getElementById('novaTarefaNome').value;
+    const tipo = document.getElementById('novaTarefaTipo').value;
+    const setor = document.getElementById('novaTarefaSetor').value;
+    const descricao = document.getElementById('novaTarefaDescricao').value;
+    
+    if (!nome || !tipo || !setor) {
+        alert('Preencha os campos obrigatórios (Nome, Tipo e Setor)');
+        return;
+    }
+    
+    const dados = {
+        nome: nome,
+        tipo: tipo,
+        setor_id: parseInt(setor),
+        descricao: descricao,
+        tarefa_comum: false
+    };
+    
+    console.log('📤 Enviando dados:', dados);
+    
+    fetch('/tarefas-melhoradas/api/tarefas', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dados)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('📥 Resposta:', data);
+        if (data.success) {
+            alert('Tarefa criada com sucesso!');
+            fecharModalCriarTarefa();
+            carregarTarefas();
+        } else {
+            alert('Erro: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erro:', error);
+        alert('Erro ao criar tarefa');
+    });
+}
+
+// ===== MODAL VINCULAR RESPONSÁVEL =====
+function abrirModalVincularResp() {
+    console.log('📝 Abrindo modal vincular responsável');
+    const modal = document.getElementById('modalVincularResp');
+    console.log('📱 Modal encontrado:', modal);
+    
+    if (!modal) {
+        console.error('❌ Modal não encontrado!');
+        alert('Erro: Modal não encontrado!');
+        return;
+    }
+    
+    // Forçar exibição
+    modal.style.display = 'flex';
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.zIndex = '99999';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    
+    console.log('✅ Modal exibido');
+    console.log('📊 Modal display:', modal.style.display);
+    console.log('📊 Modal z-index:', modal.style.zIndex);
+}
+
+function fecharModalVincularResp() {
+    console.log('🚪 Fechando modal vincular responsável');
+    const modal = document.getElementById('modalVincularResp');
+    modal.style.display = 'none';
+    // Limpar estado
+    empresaIdSelecionada = null;
+    tarefasIdsSelecionadas = [];
+    responsavelIdSelecionado = null;
+    document.getElementById('passo2').style.display = 'none';
+    document.getElementById('passo3').style.display = 'none';
+    document.getElementById('btnConfirmarVinculacao').disabled = true;
+}
+
+function salvarVinculacao() {
+    console.log('💾 Salvando vinculação');
+    alert('Funcionalidade em desenvolvimento');
+}
+
+// ===== CARREGAR TAREFAS =====
+function carregarTarefas() {
+    console.log('📋 Carregando tarefas');
+    
+    fetch('/tarefas-melhoradas/api/tarefas', {
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('📊 Tarefas recebidas:', data);
+        if (data.success && data.tarefas) {
+            mostrarTarefas(data.tarefas);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erro ao carregar tarefas:', error);
+    });
+}
+
+function mostrarTarefas(tarefas) {
+    const tbody = document.getElementById('listaTarefas');
+    
+    if (tarefas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding: 20px; text-align: center; color: var(--text-secondary);">Nenhuma tarefa encontrada</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = tarefas.map(tarefa => `
+        <tr style="background-color: var(--bg-card); color: var(--text-primary);">
+            <td style="padding: 12px; border: 1px solid var(--border-color);">${tarefa.nome}</td>
+            <td style="padding: 12px; border: 1px solid var(--border-color);">
+                <span style="background-color: var(--primary-color); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                    ${tarefa.tipo}
+                </span>
+            </td>
+            <td style="padding: 12px; border: 1px solid var(--border-color);">${tarefa.setor || 'N/A'}</td>
+            <td style="padding: 12px; border: 1px solid var(--border-color);">
+                <button style="background-color: var(--danger-color); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+</script>
+
+{% endblock %}
