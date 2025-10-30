@@ -1,0 +1,27 @@
+# Arquivos a ignorar na cobertura de testes
+
+# Configuração e setup
+*/conftest.py
+pytest.ini
+setup.py
+
+# Migrações
+*migrations*
+
+# Docs
+docs/
+
+# Scripts
+*.py
+!app/**/*.py
+
+# Testes
+tests/
+
+# Frontend
+static/
+templates/
+
+# Logs
+logs/
+

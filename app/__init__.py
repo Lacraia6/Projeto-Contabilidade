@@ -49,7 +49,38 @@ def create_app() -> Flask:
 	# Configuração SQLAlchemy MySQL
 	app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Tuta1305*@localhost/contabilidade?charset=utf8mb4'
 	app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+	
+	# Configuração de Cache
+	app.config['CACHE_TYPE'] = 'simple'  # Use 'redis' em produção
+	app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 minutos
+	
+	# Configuração de Rate Limiting
+	app.config['RATELIMIT_ENABLED'] = True
+	app.config['RATELIMIT_STORAGE_URL'] = 'memory://'  # Use 'redis://' em produção
+	
 	db.init_app(app)
+	
+	# Inicializar extensões
+	try:
+		from flask_caching import Cache
+		cache = Cache()
+		cache.init_app(app)
+		app.cache = cache
+	except ImportError:
+		app.logger.warning("Flask-Caching não instalado. Cache desabilitado.")
+	
+	try:
+		from flask_limiter import Limiter
+		from flask_limiter.util import get_remote_address
+		limiter = Limiter(
+			app=app,
+			key_func=get_remote_address,
+			default_limits=["200 per day", "50 per hour"],
+			storage_uri='memory://'  # Use Redis em produção
+		)
+		app.limiter = limiter
+	except ImportError:
+		app.logger.warning("Flask-Limiter não instalado. Rate limiting desabilitado.")
 
 	# Configuração de logging
 	import logging
@@ -201,6 +232,26 @@ def create_app() -> Flask:
 		return render_template('error.html', 
 			error_code=500, 
 			error_message="Erro interno do servidor"), 500
+	
+	# Error handlers customizados para API
+	from .exceptions import APIError
+	@app.errorhandler(APIError)
+	def handle_api_error(error):
+		"""Trata erros customizados da API"""
+		app.logger.error(f'API Error: {error.message}')
+		from flask import jsonify
+		return jsonify(error.to_dict()), error.status_code
+	
+	@app.errorhandler(ValueError)
+	def handle_value_error(error):
+		"""Trata erros de validação"""
+		from flask import jsonify
+		app.logger.error(f'Validation Error: {str(error)}')
+		return jsonify({
+			'success': False,
+			'message': str(error),
+			'error_type': 'validation_error'
+		}), 400
 
 	return app
 

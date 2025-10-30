@@ -10,11 +10,7 @@
 window.FilterSystem = {
   searchTimeout: null,
   isLoading: false,
-  dataCache: {
-    empresas: [],
-    colaboradores: [],
-    tarefas: []
-  },
+  dataCache: {}, // Cache dinâmico por configType
   
   // Configurações padrão para diferentes tipos de filtro
   configs: {
@@ -24,7 +20,7 @@ window.FilterSystem = {
       resultsId: 'empresa-results',
       hiddenId: 'empresa_ids',
       selectedId: 'empresa-selected',
-      apiEndpoint: '/tarefas/api/empresas',
+      apiEndpoint: '/api/dashboard/empresas',
       multiple: true,
       placeholder: 'Digite para buscar empresa...',
       allText: 'Todas as empresas'
@@ -34,7 +30,7 @@ window.FilterSystem = {
       resultsId: 'tarefa-results',
       hiddenId: 'tarefa_ids',
       selectedId: 'tarefa-selected',
-      apiEndpoint: '/tarefas/api/tarefas',
+      apiEndpoint: '/api/dashboard/tarefas',
       multiple: true,
       placeholder: 'Digite para buscar tarefa...',
       allText: 'Todas as tarefas'
@@ -156,6 +152,16 @@ window.FilterSystem = {
       placeholder: 'Digite para buscar funcionário...',
       allText: 'Todos os funcionários'
     },
+    colaborador_relatorios: {
+      inputId: 'funcionario-search',
+      resultsId: 'funcionario-results',
+      hiddenId: 'funcionario_id',
+      selectedId: 'funcionario-selected',
+      apiEndpoint: '/tarefas/api/usuarios-setor',
+      multiple: false,
+      placeholder: 'Digite para buscar funcionário...',
+      allText: 'Todos os funcionários'
+    },
     tarefa_relatorios: {
       inputId: 'tarefa-search',
       resultsId: 'tarefa-results',
@@ -260,12 +266,15 @@ window.FilterSystem.loadData = function(configType) {
       } else if (data.usuarios) {
         // Estrutura: {usuarios: [...]}
         dataArray = data.usuarios;
+      } else if (data.usuario) {
+        // Estrutura: {usuario: [...]}
+        dataArray = data.usuario;
       } else if (data.success && data.data) {
         // Estrutura: {success: true, data: [...]}
         dataArray = data.data;
-      } else if (data.success && (data.empresas || data.tarefas || data.colaboradores || data.usuarios)) {
+      } else if (data.success && (data.empresas || data.tarefas || data.colaboradores || data.usuarios || data.usuario)) {
         // Estrutura: {success: true, empresas: [...]}
-        dataArray = data.empresas || data.tarefas || data.colaboradores || data.usuarios || [];
+        dataArray = data.empresas || data.tarefas || data.colaboradores || data.usuarios || data.usuario || [];
       } else if (Array.isArray(data)) {
         // Estrutura: [...]
         dataArray = data;
@@ -354,7 +363,7 @@ window.FilterSystem.createResultItem = function(configType, item) {
 // Obter campos de busca
 window.FilterSystem.getSearchFields = function(configType, item) {
   // Extrair tipo base removendo sufixos
-  const baseType = configType.replace('_dashboard', '').replace('_gerenciamento', '').replace('_vinculacao', '').replace('_individual', '').replace('_relatorios', '');
+  const baseType = configType.replace('_dashboard', '').replace('_gerenciamento', '').replace('_vinculacao', '').replace('_individual', '').replace('_relatorios', '').replace('funcionario', 'colaborador');
   
   switch (baseType) {
     case 'empresa':
@@ -363,7 +372,8 @@ window.FilterSystem.getSearchFields = function(configType, item) {
       return [item.nome, item.tipo || ''];
     case 'colaborador':
     case 'responsavel':
-      return [item.nome, item.tipo || ''];
+    case 'funcionario':
+      return [item.nome, item.tipo || '', item.login || ''];
     default:
       return [item.nome];
   }
@@ -372,7 +382,7 @@ window.FilterSystem.getSearchFields = function(configType, item) {
 // Obter campos de exibição
 window.FilterSystem.getDisplayFields = function(configType, item) {
   // Extrair tipo base removendo sufixos
-  const baseType = configType.replace('_dashboard', '').replace('_gerenciamento', '').replace('_vinculacao', '').replace('_individual', '').replace('_relatorios', '');
+  const baseType = configType.replace('_dashboard', '').replace('_gerenciamento', '').replace('_vinculacao', '').replace('_individual', '').replace('_relatorios', '').replace('funcionario', 'colaborador');
   
   switch (baseType) {
     case 'empresa':
@@ -387,9 +397,10 @@ window.FilterSystem.getDisplayFields = function(configType, item) {
       };
     case 'colaborador':
     case 'responsavel':
+    case 'funcionario':
       return {
         primary: item.nome,
-        secondary: item.tipo || 'Colaborador'
+        secondary: item.tipo || item.login || 'Colaborador'
       };
     default:
       return {

@@ -1,33 +1,24 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from app.db import db
 from app.models import Empresa, RelacionamentoTarefa, Periodo, Tarefa, Usuario, Retificacao
-from app.utils import get_previous_period, get_previous_period_label, convert_period_to_label, validate_period_format
+from app.utils import (
+    get_previous_period, get_previous_period_label, convert_period_to_label, 
+    validate_period_format, should_show_task_by_type
+)
+from sqlalchemy.orm import joinedload
 from datetime import datetime
 import re
 
 bp = Blueprint('dashboard', __name__, url_prefix='')
 
 
-# Funções movidas para app/utils.py - mantidas aqui para compatibilidade
-def validate_period_format_local(period):
-    """Valida se o período está no formato correto (MM/AAAA)"""
-    return validate_period_format(period)
-
-
-def convert_period_to_label_local(period):
-    """Converte período de MM/AAAA para YYYY-MM"""
-    return convert_period_to_label(period)
+# Funções consolidadas em app/utils.py
 
 
 def _build_periodos(empresa_id, periodo_label, user_id, tarefa_id):
-    """Constrói lista de períodos com filtros aplicados"""
-    query = db.session.query(Periodo, RelacionamentoTarefa, Tarefa, Empresa).join(
-        RelacionamentoTarefa, Periodo.relacionamento_tarefa_id == RelacionamentoTarefa.id
-    ).join(
-        Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
-    ).join(
-        Empresa, RelacionamentoTarefa.empresa_id == Empresa.id
-    )
+    """Constrói lista de períodos com filtros aplicados - OTIMIZADA com joinedload"""
+    # Usar joinedload para evitar N+1 queries
+    query = db.session.query(Periodo).join(RelacionamentoTarefa).join(Tarefa).join(Empresa)
     
     if periodo_label:
         query = query.filter(Periodo.periodo_label == periodo_label)
@@ -38,8 +29,18 @@ def _build_periodos(empresa_id, periodo_label, user_id, tarefa_id):
     if tarefa_id:
         query = query.filter(RelacionamentoTarefa.tarefa_id == tarefa_id)
     
+    # Carregar relacionamentos de uma vez
+    periodos = query.options(
+        joinedload(Periodo.relacionamento_tarefa).joinedload(RelacionamentoTarefa.tarefa),
+        joinedload(Periodo.relacionamento_tarefa).joinedload(RelacionamentoTarefa.empresa)
+    ).all()
+    
     itens = []
-    for p, rel, tar, emp in query.all():
+    for p in periodos:
+        rel = p.relacionamento_tarefa
+        tar = rel.tarefa
+        emp = rel.empresa
+        
         itens.append({
             "periodo_id": p.id,
             "nome": tar.nome,  # Nome da tarefa
@@ -57,74 +58,16 @@ def _build_periodos(empresa_id, periodo_label, user_id, tarefa_id):
     return itens
 
 
-def _should_show_task_by_type(tarefa_tipo, periodo_label, tarefa_periodo_label=None):
-    """
-    Determina se uma tarefa deve ser exibida baseado no seu tipo e período
-    
-    Args:
-        tarefa_tipo (str): Tipo da tarefa (Mensal, Trimestral, Anual)
-        periodo_label (str): Período filtrado pelo usuário (YYYY-MM)
-        tarefa_periodo_label (str): Período da tarefa específica (YYYY-MM ou YYYY-TQ)
-    
-    Returns:
-        bool: True se a tarefa deve ser exibida, False caso contrário
-    """
-    if tarefa_tipo == 'Mensal':
-        return True  # Tarefas mensais aparecem todo mês
-    
-    elif tarefa_tipo == 'Trimestral':
-        if not periodo_label or not tarefa_periodo_label:
-            return False
-        
-        # Mapear trimestres para o mês final de cada trimestre
-        trimestre_para_mes_final = {
-            'T1': 3,   # Primeiro trimestre -> Março
-            'T2': 6,   # Segundo trimestre -> Junho
-            'T3': 9,   # Terceiro trimestre -> Setembro
-            'T4': 12   # Quarto trimestre -> Dezembro
-        }
-        
-        try:
-            # Extrair mês do período filtrado pelo usuário
-            if len(periodo_label) >= 7 and '-' in periodo_label:
-                mes_filtro = int(periodo_label.split('-')[1])
-                
-                # Extrair trimestre da tarefa (ex: 2025-T3 -> T3)
-                if tarefa_periodo_label and 'T' in tarefa_periodo_label:
-                    trimestre_tarefa = tarefa_periodo_label.split('-')[-1]  # Pega a parte após o último '-'
-                    
-                    # Verificar se o mês filtrado é o mês final do trimestre da tarefa
-                    mes_final_trimestre = trimestre_para_mes_final.get(trimestre_tarefa)
-                    if mes_final_trimestre and mes_filtro == mes_final_trimestre:
-                        return True
-                
-                return False
-                
-        except (ValueError, IndexError):
-            return False
-    
-    elif tarefa_tipo == 'Anual':
-        # Tarefas anuais aparecem o ano todo, mas serão tratadas separadamente
-        return True
-    
-    return True  # Por padrão, mostrar a tarefa
 
 
 def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_filter):
-    """Constrói lista de períodos com suporte a múltiplas empresas e tarefas"""
-    from datetime import datetime
-    
+    """Constrói lista de períodos com suporte a múltiplas empresas e tarefas - OTIMIZADA com joinedload"""
     # Determinar se é período atual ou futuro
     periodo_atual = get_previous_period_label()  # Período anterior (padrão)
     is_periodo_atual = periodo_label == periodo_atual
     
-    query = db.session.query(Periodo, RelacionamentoTarefa, Tarefa, Empresa).join(
-        RelacionamentoTarefa, Periodo.relacionamento_tarefa_id == RelacionamentoTarefa.id
-    ).join(
-        Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
-    ).join(
-        Empresa, RelacionamentoTarefa.empresa_id == Empresa.id
-    )
+    # Usar joinedload para evitar N+1 queries
+    query = db.session.query(Periodo).join(RelacionamentoTarefa).join(Tarefa).join(Empresa)
     
     # Filtrar por empresas (suporte a múltiplas)
     if empresa_filter:
@@ -149,8 +92,18 @@ def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_fil
         # Para períodos futuros, mostrar apenas tarefas ativas (versao_atual = True)
         query = query.filter(RelacionamentoTarefa.versao_atual == True)
     
+    # Carregar relacionamentos de uma vez
+    periodos = query.options(
+        joinedload(Periodo.relacionamento_tarefa).joinedload(RelacionamentoTarefa.tarefa),
+        joinedload(Periodo.relacionamento_tarefa).joinedload(RelacionamentoTarefa.empresa)
+    ).all()
+    
     itens = []
-    for p, rel, tar, emp in query.all():
+    for p in periodos:
+        rel = p.relacionamento_tarefa
+        tar = rel.tarefa
+        emp = rel.empresa
+        
         # Excluir tarefas anuais (são tratadas separadamente)
         if tar.tipo == 'Anual':
             continue
@@ -159,7 +112,7 @@ def _build_periodos_multiplas(empresa_filter, periodo_label, user_id, tarefa_fil
         # A filtragem será feita pela lógica de tipo de tarefa
         if tar.tipo == 'Trimestral':
             # Aplicar filtragem inteligente por tipo de tarefa
-            if not _should_show_task_by_type(tar.tipo, periodo_label, p.periodo_label):
+            if not should_show_task_by_type(tar.tipo, periodo_label, p.periodo_label):
                 continue
         else:
             # Para tarefas mensais, aplicar filtro de período normalmente
@@ -315,16 +268,17 @@ def get_empresas_dashboard():
         user_tipo = usuario.tipo if usuario else 'normal'
         user_setor_id = usuario.setor_id if usuario else None
         
-        # Buscar empresas que têm tarefas relacionadas ao usuário
+        # Buscar empresas que têm tarefas relacionadas ao usuário - OTIMIZADA
         empresas_query = db.session.query(Empresa).join(
             RelacionamentoTarefa, Empresa.id == RelacionamentoTarefa.empresa_id
-        ).filter(RelacionamentoTarefa.responsavel_id == user_id).distinct().order_by(Empresa.nome)
+        ).filter(RelacionamentoTarefa.responsavel_id == user_id).distinct()
         
         # Aplicar filtro de setor apenas para gerentes
         if user_tipo == 'gerente' and user_setor_id:
+            empresas_query = empresas_query.join(Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id)
             empresas_query = empresas_query.filter(Tarefa.setor_id == user_setor_id)
         
-        empresas = empresas_query.all()
+        empresas = empresas_query.order_by(Empresa.nome).all()
         
         empresas_json = []
         for empresa in empresas:
@@ -354,7 +308,7 @@ def get_tarefas_dashboard():
         user_tipo = usuario.tipo if usuario else 'normal'
         user_setor_id = usuario.setor_id if usuario else None
         
-        # Buscar tarefas relacionadas ao usuário
+        # Buscar tarefas relacionadas ao usuário - OTIMIZADA
         tarefas_query = db.session.query(Tarefa).join(
             RelacionamentoTarefa, Tarefa.id == RelacionamentoTarefa.tarefa_id
         ).filter(RelacionamentoTarefa.responsavel_id == user_id)

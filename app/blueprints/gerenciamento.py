@@ -5,75 +5,17 @@ from app.models import (
     PeriodoExecucao, HistoricoMudancaTributacao, MudancaTributacaoPendente,
     VinculacaoEmpresaTributacao, TarefaTributacao
 )
-from app.utils import get_previous_period, get_previous_period_label, convert_period_to_label, validate_period_format
+from app.utils import (
+    get_previous_period, get_previous_period_label, convert_period_to_label, 
+    validate_period_format, should_show_task_by_type
+)
 from datetime import datetime, date
 import re
 
 bp = Blueprint('gerenciamento', __name__, url_prefix='/gerenciamento')
 
 
-# Funções movidas para app/utils.py - mantidas aqui para compatibilidade
-def validate_period_format_local(period):
-    """Valida se o período está no formato correto (MM/AAAA)"""
-    return validate_period_format(period)
-
-
-def convert_period_to_label_local(period):
-    """Converte período de MM/AAAA para YYYY-MM"""
-    return convert_period_to_label(period)
-
-
-def _should_show_task_by_type(tarefa_tipo, periodo_label, tarefa_periodo_label=None):
-    """
-    Determina se uma tarefa deve ser exibida baseado no seu tipo e período
-    
-    Args:
-        tarefa_tipo (str): Tipo da tarefa (Mensal, Trimestral, Anual)
-        periodo_label (str): Período filtrado pelo usuário (YYYY-MM)
-        tarefa_periodo_label (str): Período da tarefa específica (YYYY-MM ou YYYY-TQ)
-    
-    Returns:
-        bool: True se a tarefa deve ser exibida, False caso contrário
-    """
-    if tarefa_tipo == 'Mensal':
-        return True  # Tarefas mensais aparecem todo mês
-    
-    elif tarefa_tipo == 'Trimestral':
-        if not periodo_label or not tarefa_periodo_label:
-            return False
-        
-        # Mapear trimestres para o mês final de cada trimestre
-        trimestre_para_mes_final = {
-            'T1': 3,   # Primeiro trimestre -> Março
-            'T2': 6,   # Segundo trimestre -> Junho
-            'T3': 9,   # Terceiro trimestre -> Setembro
-            'T4': 12   # Quarto trimestre -> Dezembro
-        }
-        
-        try:
-            # Extrair mês do período filtrado pelo usuário
-            if len(periodo_label) >= 7 and '-' in periodo_label:
-                mes_filtro = int(periodo_label.split('-')[1])
-                
-                # Extrair trimestre da tarefa (ex: 2025-T3 -> T3)
-                if tarefa_periodo_label and 'T' in tarefa_periodo_label:
-                    trimestre_tarefa = tarefa_periodo_label.split('-')[-1]  # Pega a parte após o último '-'
-                    
-                    # Verificar se o mês filtrado é o mês final do trimestre da tarefa
-                    mes_final_trimestre = trimestre_para_mes_final.get(trimestre_tarefa)
-                    if mes_final_trimestre and mes_filtro == mes_final_trimestre:
-                        return True
-                
-                return False
-                
-        except (ValueError, IndexError):
-            return False
-    
-    elif tarefa_tipo == 'Anual':
-        # Tarefas anuais aparecem o ano todo, mas serão tratadas separadamente
-        return True
-    
-    return True  # Por padrão, mostrar a tarefa
+# Funções consolidadas em app/utils.py
 
 
 @bp.get('')
