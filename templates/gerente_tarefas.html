@@ -112,7 +112,7 @@
 </div>
 
 <!-- Modal Vincular Responsável (SIMPLES E FUNCIONAL) -->
-<div id="modalVincularResp" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+<div id="modalVincularResponsavel" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
     <div style="background-color: var(--bg-primary); border: 2px solid var(--border-color); border-radius: 8px; width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto;">
         
         <!-- Header -->
@@ -247,6 +247,7 @@ function abrirModalCriarTarefa() {
     }
     
     // Forçar exibição
+    modal.classList.add('show');
     modal.style.display = 'flex';
     modal.style.visibility = 'visible';
     modal.style.opacity = '1';
@@ -269,6 +270,7 @@ function abrirModalCriarTarefa() {
 function fecharModalCriarTarefa() {
     console.log('🚪 Fechando modal criar tarefa');
     const modal = document.getElementById('modalCriarTarefa');
+    modal.classList.remove('show');
     modal.style.display = 'none';
     // Limpar campos
     document.getElementById('novaTarefaNome').value = '';
@@ -328,7 +330,7 @@ function salvarNovaTarefa() {
 // ===== MODAL VINCULAR RESPONSÁVEL =====
 function abrirModalVincularResp() {
     console.log('📝 Abrindo modal vincular responsável');
-    const modal = document.getElementById('modalVincularResp');
+    const modal = document.getElementById('modalVincularResponsavel');
     console.log('📱 Modal encontrado:', modal);
     
     if (!modal) {
@@ -338,6 +340,7 @@ function abrirModalVincularResp() {
     }
     
     // Forçar exibição
+    modal.classList.add('show');
     modal.style.display = 'flex';
     modal.style.visibility = 'visible';
     modal.style.opacity = '1';
@@ -358,7 +361,8 @@ function abrirModalVincularResp() {
 
 function fecharModalVincularResp() {
     console.log('🚪 Fechando modal vincular responsável');
-    const modal = document.getElementById('modalVincularResp');
+    const modal = document.getElementById('modalVincularResponsavel');
+    modal.classList.remove('show');
     modal.style.display = 'none';
     // Limpar estado
     empresaIdSelecionada = null;

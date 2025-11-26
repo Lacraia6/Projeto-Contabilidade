@@ -2,6 +2,7 @@
 Configuração global para pytest
 """
 
+import os
 import pytest
 from app import create_app
 from app.db import db
@@ -12,11 +13,9 @@ from werkzeug.security import generate_password_hash
 @pytest.fixture(scope='session')
 def app():
     """Cria uma instância da aplicação para testes"""
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['WTF_CSRF_ENABLED'] = False
-    app.config['AUTH_ENABLED'] = False  # Desabilitar autenticação para testes
+    os.environ['APP_ENV'] = 'testing'
+    os.environ.setdefault('TEST_DATABASE_URL', 'sqlite:///:memory:')
+    app = create_app('testing')
     
     with app.app_context():
         db.create_all()
@@ -105,15 +104,13 @@ def setup_test_data():
         nome='Declaração Mensal',
         tipo='Mensal',
         descricao='Declaração mensal de impostos',
-        setor_id=setor_fiscal.id,
-        ativo=True
+        setor_id=setor_fiscal.id
     )
     tarefa2 = Tarefa(
         nome='SPED Contábil',
         tipo='Anual',
         descricao='SPED contábil anual',
-        setor_id=setor_contabil.id,
-        ativo=True
+        setor_id=setor_contabil.id
     )
     db.session.add_all([tarefa1, tarefa2])
     db.session.flush()

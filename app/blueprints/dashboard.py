@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from app.db import db
 from app.models import Empresa, RelacionamentoTarefa, Periodo, Tarefa, Usuario, Retificacao
 from app.utils import (
@@ -8,6 +8,10 @@ from app.utils import (
 from sqlalchemy.orm import joinedload
 from datetime import datetime
 import re
+from app.utils import get_current_period_label, gerar_periodo_label
+from app.services.tarefa_service import TarefaService
+from app.services.empresa_service import EmpresaService
+from app.blueprints.api_v1 import invalidate_tarefas_cache, invalidate_empresas_cache
 
 bp = Blueprint('dashboard', __name__, url_prefix='')
 
@@ -492,6 +496,10 @@ def concluir_tarefa():
         
         db.session.commit()
         
+        # Invalidar cache relacionado
+        invalidate_tarefas_cache()
+        invalidate_empresas_cache()
+        
         return jsonify({'success': True, 'message': 'Tarefa concluída com sucesso!'})
         
     except Exception as e:
@@ -531,6 +539,10 @@ def retificar_tarefa():
         db.session.add(retificacao)
         
         db.session.commit()
+        
+        # Invalidar cache relacionado
+        invalidate_tarefas_cache()
+        invalidate_empresas_cache()
         
         return jsonify({'success': True, 'message': 'Tarefa retificada com sucesso!'})
         

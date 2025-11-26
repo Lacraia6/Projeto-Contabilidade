@@ -20,7 +20,7 @@ window.FilterSystem = {
       resultsId: 'empresa-results',
       hiddenId: 'empresa_ids',
       selectedId: 'empresa-selected',
-      apiEndpoint: '/api/dashboard/empresas',
+      apiEndpoint: '/api/v1/empresas',
       multiple: true,
       placeholder: 'Digite para buscar empresa...',
       allText: 'Todas as empresas'
@@ -30,7 +30,7 @@ window.FilterSystem = {
       resultsId: 'tarefa-results',
       hiddenId: 'tarefa_ids',
       selectedId: 'tarefa-selected',
-      apiEndpoint: '/api/dashboard/tarefas',
+      apiEndpoint: '/api/v1/tarefas',
       multiple: true,
       placeholder: 'Digite para buscar tarefa...',
       allText: 'Todas as tarefas'
@@ -41,7 +41,7 @@ window.FilterSystem = {
       resultsId: 'empresa-results',
       hiddenId: 'empresa_ids',
       selectedId: 'empresa-selected',
-      apiEndpoint: '/gerenciamento/api/empresas',
+      apiEndpoint: '/api/v1/empresas',
       multiple: true,
       placeholder: 'Digite para buscar empresa...',
       allText: 'Todas as empresas'
@@ -51,7 +51,7 @@ window.FilterSystem = {
       resultsId: 'tarefa-results',
       hiddenId: 'tarefa_id',
       selectedId: 'tarefa-selected',
-      apiEndpoint: '/gerenciamento/api/tarefas',
+      apiEndpoint: '/api/v1/tarefas',
       multiple: false,
       placeholder: 'Digite para buscar tarefa...',
       allText: 'Todas as tarefas'
@@ -255,28 +255,31 @@ window.FilterSystem.loadData = function(configType) {
       let dataArray = [];
       
       if (data.empresas) {
-        // Estrutura: {empresas: [...]}
+        // Estrutura: {empresas: [...]} 
         dataArray = data.empresas;
       } else if (data.tarefas) {
-        // Estrutura: {tarefas: [...]}
+        // Estrutura: {tarefas: [...]} 
         dataArray = data.tarefas;
+      } else if (data.items) {
+        // Estrutura: {items: [...]} (API v1 padronizada)
+        dataArray = data.items;
       } else if (data.colaboradores) {
-        // Estrutura: {colaboradores: [...]}
+        // Estrutura: {colaboradores: [...]} 
         dataArray = data.colaboradores;
       } else if (data.usuarios) {
-        // Estrutura: {usuarios: [...]}
+        // Estrutura: {usuarios: [...]} 
         dataArray = data.usuarios;
       } else if (data.usuario) {
-        // Estrutura: {usuario: [...]}
+        // Estrutura: {usuario: [...]} 
         dataArray = data.usuario;
       } else if (data.success && data.data) {
-        // Estrutura: {success: true, data: [...]}
+        // Estrutura: {success: true, data: [...]} 
         dataArray = data.data;
-      } else if (data.success && (data.empresas || data.tarefas || data.colaboradores || data.usuarios || data.usuario)) {
-        // Estrutura: {success: true, empresas: [...]}
-        dataArray = data.empresas || data.tarefas || data.colaboradores || data.usuarios || data.usuario || [];
+      } else if (data.success && (data.empresas || data.tarefas || data.colaboradores || data.usuarios || data.usuario || data.items)) {
+        // Estrutura: {success: true, empresas: [...]} (fallback)
+        dataArray = data.empresas || data.tarefas || data.colaboradores || data.usuarios || data.usuario || data.items || [];
       } else if (Array.isArray(data)) {
-        // Estrutura: [...]
+        // Estrutura: [...] 
         dataArray = data;
       } else {
         console.error(`Erro ao carregar ${configType}: Estrutura de resposta não reconhecida`, data);

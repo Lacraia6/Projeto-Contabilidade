@@ -254,8 +254,8 @@
 </section>
 
 <!-- Modal para Alterar Senha -->
-<div id="changePasswordModal" class="modal" style="display: none;">
-  <div class="modal-content">
+<div id="changePasswordModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+  <div class="modal-content" style="position: relative; z-index: 10000;">
     <div class="modal-header">
       <h3><i class="fas fa-key"></i> Alterar Senha do Usuário</h3>
       <span class="close" onclick="closeChangePasswordModal()">&times;</span>
@@ -290,8 +290,8 @@
 </div>
 
 <!-- Modal para Alterar Tributação -->
-<div id="changeTributacaoModal" class="modal" style="display: none;">
-  <div class="modal-content">
+<div id="changeTributacaoModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+  <div class="modal-content" style="position: relative; z-index: 10000;">
     <div class="modal-header">
       <h3><i class="fas fa-exchange-alt"></i> Alterar Tributação da Empresa</h3>
       <span class="close" onclick="closeChangeTributacaoModal()">&times;</span>
@@ -409,7 +409,12 @@ function showChangePasswordModal(userId, userName, userLogin) {
   document.getElementById('password-user-id').value = userId;
   document.getElementById('password-user-name').textContent = userName;
   document.getElementById('password-user-login').textContent = userLogin;
-  document.getElementById('changePasswordModal').style.display = 'block';
+  
+  const modal = document.getElementById('changePasswordModal');
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+  modal.style.visibility = 'visible';
+  modal.style.opacity = '1';
   
   // Limpar campos
   document.getElementById('new_password').value = '';
@@ -417,7 +422,12 @@ function showChangePasswordModal(userId, userName, userLogin) {
 }
 
 function closeChangePasswordModal() {
-  document.getElementById('changePasswordModal').style.display = 'none';
+  const modal = document.getElementById('changePasswordModal');
+  modal.classList.remove('show');
+  modal.style.display = 'none';
+  modal.style.visibility = 'hidden';
+  modal.style.opacity = '0';
+  
   document.getElementById('new_password').value = '';
   document.getElementById('confirm_password').value = '';
 }
@@ -444,6 +454,14 @@ document.getElementById('changePasswordForm').addEventListener('submit', functio
     e.preventDefault();
     return false;
   }
+  
+  // Fechar modal e continuar com submit
+  // O modal será fechado antes do redirect
+  setTimeout(() => {
+    closeChangePasswordModal();
+  }, 100);
+  
+  return true;
 });
 
 // Funções para modal de alterar tributação
@@ -451,7 +469,12 @@ function showChangeTributacaoModal(empresaId, empresaNome, tributacaoAtualId, tr
   document.getElementById('tributacao-empresa-id').value = empresaId;
   document.getElementById('tributacao-empresa-nome').textContent = empresaNome;
   document.getElementById('tributacao-atual').textContent = tributacaoAtualNome;
-  document.getElementById('changeTributacaoModal').style.display = 'block';
+  
+  const modal = document.getElementById('changeTributacaoModal');
+  modal.classList.add('show');
+  modal.style.display = 'flex';
+  modal.style.visibility = 'visible';
+  modal.style.opacity = '1';
   
   // Limpar campos
   document.getElementById('nova_tributacao').value = '';
@@ -470,7 +493,12 @@ function showChangeTributacaoModal(empresaId, empresaNome, tributacaoAtualId, tr
 }
 
 function closeChangeTributacaoModal() {
-  document.getElementById('changeTributacaoModal').style.display = 'none';
+  const modal = document.getElementById('changeTributacaoModal');
+  modal.classList.remove('show');
+  modal.style.display = 'none';
+  modal.style.visibility = 'hidden';
+  modal.style.opacity = '0';
+  
   document.getElementById('nova_tributacao').value = '';
   document.getElementById('confirmar_alteracao').checked = false;
   
@@ -504,6 +532,14 @@ document.getElementById('changeTributacaoForm').addEventListener('submit', funct
     e.preventDefault();
     return false;
   }
+  
+  // Fechar modal e continuar com submit
+  // O modal será fechado antes do redirect
+  setTimeout(() => {
+    closeChangeTributacaoModal();
+  }, 100);
+  
+  return true;
 });
 
 function verificarGeracao() {
@@ -592,8 +628,8 @@ function executarGeracao() {
   const modalBody = document.querySelector('#confirmacaoModal .modal-body');
   modalBody.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Gerando tarefas...</div>';
   
-  // Fazer requisição para gerar
-  fetch('/api/tarefas-auto/gerar-mes', {
+  // Fazer requisição para gerar - usar gerar-tarefas-periodo que considera todos os tipos de tarefas
+  fetch('/api/tarefas-auto/gerar-tarefas-periodo', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -611,7 +647,9 @@ function executarGeracao() {
           <i class="fas fa-check-circle"></i>
           <strong>Sucesso!</strong><br>
           ${data.message}<br>
-          <strong>Tarefas criadas:</strong> ${data.tarefas_criadas}
+          <strong>Tarefas criadas:</strong> ${data.tarefas_criadas || 0}<br>
+          ${data.tarefas_existentes > 0 ? `<strong>Tarefas já existentes:</strong> ${data.tarefas_existentes}<br>` : ''}
+          ${data.total_relacionamentos ? `<strong>Total de relacionamentos:</strong> ${data.total_relacionamentos}` : ''}
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-primary" onclick="fecharModal()">Fechar</button>
@@ -623,7 +661,9 @@ function executarGeracao() {
         <div class="alert alert-success">
           <strong>✅ Tarefas geradas com sucesso!</strong><br>
           Período: ${data.periodo}<br>
-          Tarefas criadas: ${data.tarefas_criadas}
+          Tarefas criadas: ${data.tarefas_criadas || 0}<br>
+          ${data.tarefas_existentes > 0 ? `Tarefas já existentes: ${data.tarefas_existentes}<br>` : ''}
+          ${data.total_relacionamentos ? `Total de relacionamentos: ${data.total_relacionamentos}` : ''}
         </div>
       `;
       

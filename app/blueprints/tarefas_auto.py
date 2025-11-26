@@ -52,14 +52,21 @@ def gerar_tarefas_mes():
                 'periodos_existentes': periodos_existentes
             })
         
-        # Buscar todos os relacionamentos ativos
-        relacionamentos = RelacionamentoTarefa.query.filter_by(status='ativa').all()
+        # Buscar todos os relacionamentos ativos (versão atual e status ativa)
+        relacionamentos = RelacionamentoTarefa.query.filter_by(
+            status='ativa',
+            versao_atual=True
+        ).all()
         
         tarefas_criadas = 0
         
         for rel in relacionamentos:
             tarefa = Tarefa.query.get(rel.tarefa_id)
             if not tarefa:
+                continue
+            
+            # IGNORAR TAREFAS ANUAIS - elas são gerenciadas separadamente
+            if tarefa.tipo == 'Anual':
                 continue
             
             # Calcular datas do período
@@ -224,7 +231,10 @@ def verificar_geracao():
         periodo_label = gerar_periodo_label(ano, mes)
         
         periodos_existentes = Periodo.query.filter_by(periodo_label=periodo_label).count()
-        relacionamentos_ativos = RelacionamentoTarefa.query.filter_by(status='ativa').count()
+        relacionamentos_ativos = RelacionamentoTarefa.query.filter_by(
+            status='ativa',
+            versao_atual=True
+        ).count()
         
         return jsonify({
             'success': True,
@@ -252,8 +262,11 @@ def gerar_tarefas_periodo():
         # Calcular período
         periodo_label = gerar_periodo_label(ano, mes)
         
-        # Buscar todos os relacionamentos ativos
-        relacionamentos = RelacionamentoTarefa.query.filter_by(status='ativa').all()
+        # Buscar todos os relacionamentos ativos (versão atual e status ativa)
+        relacionamentos = RelacionamentoTarefa.query.filter_by(
+            status='ativa',
+            versao_atual=True
+        ).all()
         
         tarefas_criadas = 0
         tarefas_existentes = 0
@@ -261,6 +274,10 @@ def gerar_tarefas_periodo():
         for rel in relacionamentos:
             tarefa = Tarefa.query.get(rel.tarefa_id)
             if not tarefa:
+                continue
+            
+            # IGNORAR TAREFAS ANUAIS - elas são gerenciadas separadamente
+            if tarefa.tipo == 'Anual':
                 continue
             
             # Calcular datas do período baseado no tipo da tarefa

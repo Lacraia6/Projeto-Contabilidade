@@ -194,10 +194,27 @@ def return_page():
         print(f"DEBUG GERENCIAMENTO - Empresas resumo: {len(empresas_resumo)}")
         print(f"DEBUG GERENCIAMENTO - Responsáveis: {len(responsaveis_tarefas)}")
 
-        # Buscar mudanças de tributação pendentes para notificação
-        mudancas_pendentes = MudancaTributacaoPendente.query.filter(
-            MudancaTributacaoPendente.status.in_(['pendente', 'em_revisao'])
-        ).count()
+        # Buscar mudanças de tributação pendentes para notificação (filtradas por setor se for gerente)
+        if usuario and usuario.tipo == 'gerente' and usuario.setor_id:
+            # Gerente: apenas mudanças que têm tarefas do seu setor sem responsável
+            mudancas_ids = db.session.query(MudancaTributacaoPendente.id).join(
+                RelacionamentoTarefa, RelacionamentoTarefa.empresa_id == MudancaTributacaoPendente.empresa_id
+            ).join(
+                Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
+            ).filter(
+                MudancaTributacaoPendente.status.in_(['pendente', 'em_revisao']),
+                RelacionamentoTarefa.responsavel_id.is_(None),
+                RelacionamentoTarefa.versao_atual == True,
+                Tarefa.setor_id == usuario.setor_id
+            ).distinct()
+            
+            mudanca_ids_list = [m[0] for m in mudancas_ids.all()]
+            mudancas_pendentes = len(mudanca_ids_list) if mudanca_ids_list else 0
+        else:
+            # Admin: todas as mudanças pendentes
+            mudancas_pendentes = MudancaTributacaoPendente.query.filter(
+                MudancaTributacaoPendente.status.in_(['pendente', 'em_revisao'])
+            ).count()
         
         return render_template(
             'gerenciamento.html',
@@ -308,7 +325,8 @@ def api_colaboradores():
         
         return jsonify({
             'success': True,
-            'colaboradores': colaboradores_data
+            'usuarios': colaboradores_data,  # Retornar como 'usuarios' para consistência
+            'colaboradores': colaboradores_data  # Manter 'colaboradores' para compatibilidade
         })
         
     except Exception as e:
@@ -991,39 +1009,93 @@ def mudancas_tributacao():
         if not usuario or usuario.tipo not in ['admin', 'gerente']:
             return redirect(url_for('auth.login_page'))
         
-        # Buscar mudanças pendentes
-        mudancas_pendentes = db.session.query(
-            MudancaTributacaoPendente, Empresa, Tributacao, Tributacao
-        ).join(
-            Empresa, MudancaTributacaoPendente.empresa_id == Empresa.id
-        ).outerjoin(
-            Tributacao, MudancaTributacaoPendente.tributacao_anterior_id == Tributacao.id
-        ).outerjoin(
-            Tributacao, MudancaTributacaoPendente.tributacao_nova_id == Tributacao.id
-        ).filter(
-            MudancaTributacaoPendente.status.in_(['pendente', 'em_revisao'])
-        ).order_by(MudancaTributacaoPendente.criado_em.desc()).all()
+        # Buscar mudanças pendentes - usar SQL puro para evitar conflito de JOINs
+        from sqlalchemy import text
+        
+        # Construir query SQL pura
+        if usuario.tipo == 'gerente' and usuario.setor_id:
+            # Para gerente: filtrar apenas empresas com tarefas do seu setor
+            sql = text("""
+                SELECT DISTINCT m.id, m.empresa_id, m.tributacao_anterior_id, m.tributacao_nova_id,
+                       m.data_mudanca, m.motivo, m.status, m.criado_em
+                FROM mudancas_tributacao_pendentes m
+                WHERE m.status IN ('pendente', 'em_revisao')
+                  AND EXISTS (
+                      SELECT 1 FROM relacionamento_tarefas rt
+                      INNER JOIN tarefas t ON rt.tarefa_id = t.id
+                      WHERE rt.empresa_id = m.empresa_id
+                        AND rt.responsavel_id IS NULL
+                        AND rt.versao_atual = 1
+                        AND t.setor_id = :setor_id
+                  )
+                ORDER BY m.criado_em DESC
+            """)
+            result = db.session.execute(sql, {'setor_id': usuario.setor_id})
+        else:
+            # Para admin: todas as mudanças pendentes
+            sql = text("""
+                SELECT id, empresa_id, tributacao_anterior_id, tributacao_nova_id,
+                       data_mudanca, motivo, status, criado_em
+                FROM mudancas_tributacao_pendentes
+                WHERE status IN ('pendente', 'em_revisao')
+                ORDER BY criado_em DESC
+            """)
+            result = db.session.execute(sql)
+        
+        # Converter resultados em objetos simples
+        class MudancaSimples:
+            def __init__(self, row):
+                self.id = row[0]
+                self.empresa_id = row[1]
+                self.tributacao_anterior_id = row[2]
+                self.tributacao_nova_id = row[3]
+                self.data_mudanca = row[4]
+                self.motivo = row[5]
+                self.status = row[6]
+                self.criado_em = row[7]
+        
+        mudancas = [MudancaSimples(row) for row in result]
         
         # Buscar tarefas sem responsável para cada mudança
         mudancas_data = []
-        for mudanca, empresa, trib_anterior, trib_nova in mudancas_pendentes:
+        for mudanca in mudancas:
+            # Buscar empresa separadamente
+            empresa = Empresa.query.get(mudanca.empresa_id)
+            
+            # Buscar tributações separadamente para evitar conflito de JOIN
+            trib_anterior = None
+            trib_nova = None
+            
+            if mudanca.tributacao_anterior_id:
+                trib_anterior = Tributacao.query.get(mudanca.tributacao_anterior_id)
+            
+            if mudanca.tributacao_nova_id:
+                trib_nova = Tributacao.query.get(mudanca.tributacao_nova_id)
             # Buscar tarefas sem responsável da nova tributação
-            tarefas_sem_responsavel = db.session.query(RelacionamentoTarefa, Tarefa).join(
+            tarefas_query = db.session.query(RelacionamentoTarefa, Tarefa).join(
                 Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
             ).filter(
                 RelacionamentoTarefa.empresa_id == empresa.id,
                 RelacionamentoTarefa.responsavel_id.is_(None),
                 RelacionamentoTarefa.versao_atual == True
-            ).all()
+            )
             
-            mudancas_data.append({
-                'mudanca': mudanca,
-                'empresa': empresa,
-                'tributacao_anterior': trib_anterior,
-                'tributacao_nova': trib_nova,
-                'tarefas_sem_responsavel': tarefas_sem_responsavel
-            })
-        
+            # Se for gerente, filtrar apenas tarefas do seu setor
+            if usuario.tipo == 'gerente' and usuario.setor_id:
+                tarefas_query = tarefas_query.filter(Tarefa.setor_id == usuario.setor_id)
+            
+            tarefas_sem_responsavel = tarefas_query.all()
+            
+            # Só adicionar se houver tarefas sem responsável (para gerentes)
+            if usuario.tipo == 'admin' or (usuario.tipo == 'gerente' and len(tarefas_sem_responsavel) > 0):
+                mudancas_data.append({
+                    'mudanca': mudanca,
+                    'empresa': empresa,
+                    'tributacao_anterior': trib_anterior,
+                    'tributacao_nova': trib_nova,
+                    'tarefas_sem_responsavel': tarefas_sem_responsavel
+                })
+        print("esse retornoooooooooooooooooooooooooooooooooooooooooooooo")
         return render_template('gerenciamento_mudancas_tributacao.html',
                              mudancas=mudancas_data,
                              usuario_logado=usuario)
@@ -1046,15 +1118,35 @@ def api_mudancas_tributacao():
         if not usuario or usuario.tipo not in ['admin', 'gerente']:
             return jsonify({'success': False, 'message': 'Acesso negado'}), 403
         
-        # Buscar mudanças pendentes
-        mudancas = MudancaTributacaoPendente.query.filter(
-            MudancaTributacaoPendente.status.in_(['pendente', 'em_revisao'])
-        ).order_by(MudancaTributacaoPendente.criado_em.desc()).all()
+        # Filtrar mudanças baseado no tipo de usuário
+        if usuario.tipo == 'gerente' and usuario.setor_id:
+            # Gerente: apenas mudanças que têm tarefas do seu setor sem responsável
+            mudancas_ids = db.session.query(MudancaTributacaoPendente.id).join(
+                RelacionamentoTarefa, RelacionamentoTarefa.empresa_id == MudancaTributacaoPendente.empresa_id
+            ).join(
+                Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
+            ).filter(
+                MudancaTributacaoPendente.status.in_(['pendente', 'em_revisao']),
+                RelacionamentoTarefa.responsavel_id.is_(None),
+                RelacionamentoTarefa.versao_atual == True,
+                Tarefa.setor_id == usuario.setor_id
+            ).distinct()
+            
+            mudanca_ids_list = [m[0] for m in mudancas_ids.all()]
+            mudancas = MudancaTributacaoPendente.query.filter(
+                MudancaTributacaoPendente.id.in_(mudanca_ids_list)
+            ).order_by(MudancaTributacaoPendente.criado_em.desc()).all() if mudanca_ids_list else []
+        else:
+            # Admin: todas as mudanças pendentes
+            mudancas = MudancaTributacaoPendente.query.filter(
+                MudancaTributacaoPendente.status.in_(['pendente', 'em_revisao'])
+            ).order_by(MudancaTributacaoPendente.criado_em.desc()).all()
         
         mudancas_data = []
         for mudanca in mudancas:
             mudancas_data.append({
                 'id': mudanca.id,
+                'empresa_id': mudanca.empresa_id,
                 'empresa_nome': mudanca.empresa.nome,
                 'tributacao_anterior': mudanca.tributacao_anterior.nome if mudanca.tributacao_anterior else 'N/A',
                 'tributacao_nova': mudanca.tributacao_nova.nome,
@@ -1075,7 +1167,7 @@ def api_mudancas_tributacao():
 
 @bp.get('/api/mudanca-tributacao/<int:mudanca_id>/tarefas')
 def api_tarefas_mudanca_tributacao(mudanca_id):
-    """API para buscar tarefas sem responsável de uma mudança de tributação"""
+    """API para buscar tarefas sem responsável de uma mudança de tributação (filtradas por setor do gerente)"""
     try:
         user_id = session.get('user_id')
         if not user_id:
@@ -1090,24 +1182,34 @@ def api_tarefas_mudanca_tributacao(mudanca_id):
         if not mudanca:
             return jsonify({'success': False, 'message': 'Mudança não encontrada'}), 404
         
-        # Buscar tarefas sem responsável
-        tarefas_sem_responsavel = db.session.query(RelacionamentoTarefa, Tarefa).join(
+        # Buscar tarefas sem responsável da empresa
+        query = db.session.query(RelacionamentoTarefa, Tarefa).join(
             Tarefa, RelacionamentoTarefa.tarefa_id == Tarefa.id
         ).filter(
             RelacionamentoTarefa.empresa_id == mudanca.empresa_id,
             RelacionamentoTarefa.responsavel_id.is_(None),
             RelacionamentoTarefa.versao_atual == True
-        ).all()
+        )
+        
+        # Filtrar por setor se for gerente (não admin)
+        if usuario.tipo == 'gerente' and usuario.setor_id:
+            query = query.filter(Tarefa.setor_id == usuario.setor_id)
+        
+        tarefas_sem_responsavel = query.all()
         
         tarefas_data = []
         for rel, tarefa in tarefas_sem_responsavel:
+            # Incluir TODAS as tarefas (mensais, trimestrais E anuais)
+            # O gerente pode escolher quais vincular e quais deixar em aberto
             tarefas_data.append({
                 'relacionamento_id': rel.id,
                 'tarefa_id': tarefa.id,
                 'nome': tarefa.nome,
                 'tipo': tarefa.tipo,
                 'descricao': tarefa.descricao,
-                'setor': tarefa.setor.nome if tarefa.setor else 'N/A'
+                'setor': tarefa.setor.nome if tarefa.setor else 'N/A',
+                'setor_id': tarefa.setor_id,
+                'tarefa_comum': tarefa.tarefa_comum or False
             })
         
         return jsonify({
@@ -1120,10 +1222,104 @@ def api_tarefas_mudanca_tributacao(mudanca_id):
             'tributacao_nova': {
                 'id': mudanca.tributacao_nova.id,
                 'nome': mudanca.tributacao_nova.nome
-            }
+            },
+            'tributacao_anterior': {
+                'id': mudanca.tributacao_anterior_id,
+                'nome': mudanca.tributacao_anterior.nome if mudanca.tributacao_anterior else 'N/A'
+            } if mudanca.tributacao_anterior_id else None
         })
         
     except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500
+
+
+@bp.post('/api/atualizar-responsavel-relacionamentos')
+def api_atualizar_responsavel_relacionamentos():
+    """API para atualizar responsável de múltiplos relacionamentos (mudanças de tributação)"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
+        
+        # Verificar se é gerente ou admin
+        usuario = Usuario.query.get(user_id)
+        if not usuario or usuario.tipo not in ['admin', 'gerente']:
+            return jsonify({'success': False, 'message': 'Acesso negado'}), 403
+        
+        dados = request.get_json()
+        relacionamentos = dados.get('relacionamentos', [])
+        
+        if not relacionamentos:
+            return jsonify({'success': False, 'message': 'Nenhum relacionamento fornecido'}), 400
+        
+        atualizados = 0
+        for item in relacionamentos:
+            rel_id = item.get('relacionamento_id')
+            responsavel_id = item.get('responsavel_id')
+            
+            if not rel_id or not responsavel_id:
+                continue
+            
+            # Verificar responsável
+            responsavel = Usuario.query.get(responsavel_id)
+            if not responsavel or not responsavel.activo:
+                continue
+            
+            rel = RelacionamentoTarefa.query.get(rel_id)
+            if rel and rel.versao_atual:
+                rel.responsavel_id = responsavel_id
+                atualizados += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ {atualizados} tarefa(s) vinculada(s) com sucesso!',
+            'atualizados': atualizados
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500
+
+
+@bp.post('/api/desativar-tarefas')
+def api_desativar_tarefas():
+    """API para desativar tarefas (marcar como não vinculadas)"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
+        
+        # Verificar se é gerente ou admin
+        usuario = Usuario.query.get(user_id)
+        if not usuario or usuario.tipo not in ['admin', 'gerente']:
+            return jsonify({'success': False, 'message': 'Acesso negado'}), 403
+        
+        dados = request.get_json()
+        relacionamentos_ids = dados.get('relacionamentos_ids', [])
+        
+        if not relacionamentos_ids:
+            return jsonify({'success': False, 'message': 'Nenhum relacionamento fornecido'}), 400
+        
+        desativados = 0
+        for rel_id in relacionamentos_ids:
+            rel = RelacionamentoTarefa.query.get(rel_id)
+            if rel and rel.versao_atual:
+                # Desativar a tarefa (não será mais exibida como pendente)
+                rel.versao_atual = False
+                desativados += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ {desativados} tarefa(s) marcada(s) como "Não vincular"',
+            'desativados': desativados
+        })
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500
 
 
@@ -1254,4 +1450,189 @@ def api_concluir_mudanca_tributacao():
         
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500
+
+
+# ===== GESTÃO DE TAREFAS ANUAIS =====
+
+@bp.get('/tarefas-anuais')
+def painel_tarefas_anuais():
+    """Painel específico para gerenciar tarefas anuais"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return redirect(url_for('auth.login_page'))
+        
+        usuario = Usuario.query.get(user_id)
+        if not usuario or usuario.tipo not in ['admin', 'gerente']:
+            return redirect(url_for('auth.login_page'))
+        
+        print(f"✅ [Tarefas Anuais] Renderizando painel para {usuario.nome}")
+        return render_template('gerenciamento_tarefas_anuais.html', usuario=usuario)
+        
+    except Exception as e:
+        print(f"❌ [Tarefas Anuais] Erro: {str(e)}")
+        return redirect(url_for('gerenciamento.gerenciamento_page'))
+
+
+@bp.get('/api/tarefas-anuais-disponiveis')
+def api_tarefas_anuais_disponiveis():
+    """API para buscar tarefas anuais disponíveis para vinculação"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
+        
+        usuario = Usuario.query.get(user_id)
+        if not usuario or usuario.tipo not in ['admin', 'gerente']:
+            return jsonify({'success': False, 'message': 'Acesso negado'}), 403
+        
+        # Buscar tarefas anuais
+        query = Tarefa.query.filter(Tarefa.tipo == 'Anual')
+        
+        # Filtrar por setor se for gerente
+        if usuario.tipo == 'gerente' and usuario.setor_id:
+            query = query.filter(Tarefa.setor_id == usuario.setor_id)
+        
+        tarefas = query.order_by(Tarefa.nome).all()
+        
+        tarefas_data = [{
+            'id': t.id,
+            'nome': t.nome,
+            'descricao': t.descricao,
+            'setor': t.setor.nome if t.setor else 'N/A',
+            'tributacao': t.tributacao.nome if t.tributacao else 'Comum',
+            'tarefa_comum': t.tarefa_comum
+        } for t in tarefas]
+        
+        return jsonify({'success': True, 'tarefas': tarefas_data})
+        
+    except Exception as e:
+        import traceback
+        print(f"❌ [Tarefas Anuais] Erro: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500
+
+
+@bp.post('/api/vincular-tarefa-anual')
+def api_vincular_tarefa_anual():
+    """API para vincular uma tarefa anual a um usuário e empresas"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
+        
+        usuario = Usuario.query.get(user_id)
+        if not usuario or usuario.tipo not in ['admin', 'gerente']:
+            return jsonify({'success': False, 'message': 'Acesso negado'}), 403
+        
+        data = request.get_json()
+        tarefa_id = data.get('tarefa_id')
+        funcionario_id = data.get('funcionario_id')
+        empresas_ids = data.get('empresas_ids', [])
+        ano = data.get('ano')  # Ano de execução (ex: 2025)
+        
+        if not tarefa_id or not funcionario_id or not empresas_ids or not ano:
+            return jsonify({'success': False, 'message': 'Dados incompletos'}), 400
+        
+        # Verificar tarefa
+        tarefa = Tarefa.query.get(tarefa_id)
+        if not tarefa or tarefa.tipo != 'Anual':
+            return jsonify({'success': False, 'message': 'Tarefa anual não encontrada'}), 404
+        
+        # Verificar funcionário
+        funcionario = Usuario.query.get(funcionario_id)
+        if not funcionario or not funcionario.ativo:
+            return jsonify({'success': False, 'message': 'Funcionário não encontrado'}), 404
+        
+        # Verificar setor do gerente
+        if usuario.tipo == 'gerente' and usuario.setor_id:
+            if funcionario.setor_id != usuario.setor_id:
+                return jsonify({'success': False, 'message': 'Funcionário não pertence ao seu setor'}), 403
+            if tarefa.setor_id != usuario.setor_id:
+                return jsonify({'success': False, 'message': 'Tarefa não pertence ao seu setor'}), 403
+        
+        criados = 0
+        duplicados = 0
+        erros = []
+        
+        for empresa_id in empresas_ids:
+            try:
+                empresa = Empresa.query.get(empresa_id)
+                if not empresa or not empresa.ativo:
+                    erros.append(f'Empresa ID {empresa_id} não encontrada ou inativa')
+                    continue
+                
+                # Verificar compatibilidade de tributação
+                if not tarefa.tarefa_comum:
+                    if tarefa.tributacao_id and empresa.tributacao_id != tarefa.tributacao_id:
+                        erros.append(f'{empresa.nome}: tributação incompatível')
+                        continue
+                
+                # Verificar se já existe vinculação ativa para esta tarefa+empresa no ano
+                vinculacao_existente = RelacionamentoTarefa.query.filter_by(
+                    empresa_id=empresa_id,
+                    tarefa_id=tarefa_id,
+                    versao_atual=True,
+                    status='ativa'
+                ).filter(
+                    RelacionamentoTarefa.periodo.like(f'{ano}%')
+                ).first()
+                
+                if vinculacao_existente:
+                    duplicados += 1
+                    continue
+                
+                # Criar vinculação para o ano todo (usar período como YYYY)
+                novo_rel = RelacionamentoTarefa(
+                    empresa_id=empresa_id,
+                    tarefa_id=tarefa_id,
+                    responsavel_id=funcionario_id,
+                    periodo=str(ano),  # Armazenar só o ano
+                    versao_atual=True,
+                    status='ativa',
+                    data_inicio=date(ano, 1, 1),
+                    data_fim=date(ano, 12, 31)
+                )
+                
+                db.session.add(novo_rel)
+                criados += 1
+                print(f"✅ [Tarefa Anual] Criada: {empresa.nome} → {tarefa.nome} → {funcionario.nome} (Ano: {ano})")
+                
+            except Exception as e:
+                erros.append(f'Empresa ID {empresa_id}: {str(e)}')
+                continue
+        
+        # Commit
+        try:
+            db.session.commit()
+            print(f"✅ [Tarefas Anuais] Commit realizado: {criados} vinculações criadas")
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ [Tarefas Anuais] Erro no commit: {str(e)}")
+            return jsonify({'success': False, 'message': f'Erro ao salvar: {str(e)}'}), 500
+        
+        # Mensagem final
+        mensagens = []
+        if criados > 0:
+            mensagens.append(f'{criados} vinculação(ões) criada(s)')
+        if duplicados > 0:
+            mensagens.append(f'{duplicados} já vinculada(s)')
+        
+        mensagem_final = ', '.join(mensagens) if mensagens else 'Nenhuma vinculação realizada'
+        
+        if erros:
+            mensagem_final += f'\n\nAvisos:\n' + '\n'.join(erros[:5])
+        
+        return jsonify({
+            'success': True,
+            'message': mensagem_final,
+            'criados': criados,
+            'duplicados': duplicados,
+            'erros': erros[:5]
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        print(f"❌ [Tarefas Anuais] Erro: {str(e)}\n{traceback.format_exc()}")
         return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500

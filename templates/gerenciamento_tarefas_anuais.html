@@ -1,0 +1,893 @@
+{% extends "base.html" %}
+
+{% block title %}Tarefas Anuais - Sistema DP & Contabilidade{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+  <div class="dashboard-header">
+    <h1><i class="fas fa-calendar-alt"></i> Gerenciamento de Tarefas Anuais</h1>
+    <p>Vincule tarefas anuais que podem ser executadas a qualquer momento do ano</p>
+    <div class="header-info-anual">
+      <i class="fas fa-info-circle"></i>
+      <span>Tarefas anuais são criadas UMA ÚNICA VEZ por ano e ficam disponíveis o ano todo para o funcionário</span>
+    </div>
+  </div>
+
+  <!-- Container de Feedback -->
+  <div id="feedback-container" style="display: none;"></div>
+
+  <div class="anual-container">
+    <!-- Painel de Vinculação -->
+    <div class="vinculacao-panel">
+      <div class="panel-header">
+        <h2><i class="fas fa-link"></i> Vincular Tarefa Anual</h2>
+      </div>
+      
+      <div class="panel-body">
+        <!-- Step 1: Ano -->
+        <div class="form-group-anual">
+          <label><i class="fas fa-calendar"></i> Ano de Execução</label>
+          <select id="anoExecucao" class="form-control-anual">
+            <option value="">Selecione o ano</option>
+            <option value="2024">2024</option>
+            <option value="2025" selected>2025</option>
+            <option value="2026">2026</option>
+          </select>
+        </div>
+        
+        <!-- Step 2: Tarefa -->
+        <div class="form-group-anual">
+          <label><i class="fas fa-clipboard-list"></i> Tarefa Anual</label>
+          <input type="text" id="searchTarefa" class="form-control-anual" 
+                 placeholder="🔍 Buscar tarefa anual..." />
+          <div id="tarefasList" class="results-list">
+            <div class="loading-msg">
+              <i class="fas fa-spinner fa-spin"></i> Carregando tarefas anuais...
+            </div>
+          </div>
+          <input type="hidden" id="tarefaId" value="">
+          <div id="tarefaSelecionada" class="selected-info" style="display: none;"></div>
+        </div>
+        
+        <!-- Step 3: Funcionário -->
+        <div class="form-group-anual" id="grupoFuncionario" style="opacity: 0.5; pointer-events: none;">
+          <label><i class="fas fa-user"></i> Funcionário Responsável</label>
+          <input type="text" id="searchFuncionario" class="form-control-anual" 
+                 placeholder="🔍 Buscar funcionário..." disabled />
+          <div id="funcionariosList" class="results-list">
+            <div class="placeholder-msg">Selecione uma tarefa primeiro</div>
+          </div>
+          <input type="hidden" id="funcionarioId" value="">
+          <div id="funcionarioSelecionado" class="selected-info" style="display: none;"></div>
+        </div>
+        
+        <!-- Step 4: Empresas -->
+        <div class="form-group-anual" id="grupoEmpresas" style="opacity: 0.5; pointer-events: none;">
+          <label><i class="fas fa-building"></i> Selecionar Empresas</label>
+          <input type="text" id="searchEmpresas" class="form-control-anual" 
+                 placeholder="🔍 Buscar empresas..." disabled />
+          <div id="empresasList" class="results-list checkbox-list">
+            <div class="placeholder-msg">Selecione um funcionário primeiro</div>
+          </div>
+          <div id="empresasSelecionadas" class="selected-count" style="display: none;">
+            <i class="fas fa-check-circle"></i> <span id="countEmpresas">0</span> empresa(s) selecionada(s)
+          </div>
+        </div>
+        
+        <!-- Botão Confirmar -->
+        <div class="form-actions-anual">
+          <button id="btnConfirmarAnual" class="btn-confirmar-anual" onclick="confirmarVinculacaoAnual()" disabled>
+            <i class="fas fa-check"></i> Confirmar Vinculação
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Lista de Tarefas Anuais Vinculadas -->
+    <div class="vinculadas-panel">
+      <div class="panel-header">
+        <h2><i class="fas fa-list-check"></i> Tarefas Anuais Vinculadas</h2>
+        <button class="btn-refresh" onclick="carregarTarefasVinculadas()">
+          <i class="fas fa-sync-alt"></i> Atualizar
+        </button>
+      </div>
+      
+      <div class="panel-body">
+        <div class="filtros-vinculadas">
+          <select id="filtroAno" class="form-control-small" onchange="carregarTarefasVinculadas()">
+            <option value="">Todos os anos</option>
+            <option value="2024">2024</option>
+            <option value="2025" selected>2025</option>
+            <option value="2026">2026</option>
+          </select>
+        </div>
+        
+        <div id="listaVinculadas" class="lista-vinculadas">
+          <div class="loading-msg">
+            <i class="fas fa-spinner fa-spin"></i> Carregando...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.header-info-anual {
+  margin-top: 10px;
+  padding: 12px 16px;
+  background: #fff3e0;
+  border-left: 4px solid #ff9800;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e65100;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.header-info-anual i {
+  font-size: 1.2rem;
+}
+
+.anual-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  margin-top: 25px;
+}
+
+.vinculacao-panel,
+.vinculadas-panel {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2c4f7c 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 20px 25px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 2px solid #38507f;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-header h2 {
+  color: #f7fafc;
+  margin: 0;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-refresh {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f7fafc;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-refresh:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.panel-body {
+  padding: 25px;
+}
+
+.form-group-anual {
+  margin-bottom: 20px;
+}
+
+.form-group-anual label {
+  display: block;
+  color: #b8c2d3;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-control-anual {
+  width: 100%;
+  padding: 12px 15px;
+  background: #243b69;
+  border: 2px solid #38507f;
+  border-radius: 8px;
+  color: #f7fafc;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.form-control-anual:focus {
+  outline: none;
+  border-color: #4fc3f7;
+  box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.1);
+}
+
+.form-control-anual::placeholder {
+  color: #7a8a9e;
+}
+
+.results-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkbox-list {
+  max-height: 250px;
+}
+
+.result-item {
+  background: #243b69;
+  border: 2px solid #38507f;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.result-item:hover {
+  border-color: #4fc3f7;
+  background: #2c4f7c;
+}
+
+.result-item.selected {
+  border-color: #66bb6a;
+  background: rgba(102, 187, 106, 0.1);
+}
+
+.result-item h5 {
+  color: #f7fafc;
+  margin: 0 0 4px 0;
+  font-size: 0.95rem;
+}
+
+.result-item p {
+  color: #b8c2d3;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.checkbox-item {
+  background: #243b69;
+  border: 2px solid #38507f;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.3s ease;
+}
+
+.checkbox-item:hover {
+  background: #2c4f7c;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.checkbox-item label {
+  color: #f7fafc;
+  cursor: pointer;
+  margin: 0;
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.selected-info {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(102, 187, 106, 0.2);
+  border: 2px solid #66bb6a;
+  border-radius: 8px;
+  color: #66bb6a;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selected-count {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(79, 195, 247, 0.2);
+  border-radius: 6px;
+  color: #4fc3f7;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.loading-msg,
+.placeholder-msg {
+  text-align: center;
+  padding: 30px 20px;
+  color: #7a8a9e;
+}
+
+.loading-msg i,
+.placeholder-msg i {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.form-actions-anual {
+  margin-top: 25px;
+}
+
+.btn-confirmar-anual {
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-confirmar-anual:hover:not(:disabled) {
+  background: linear-gradient(135deg, #81c784 0%, #66bb6a 100%);
+  transform: scale(1.02);
+}
+
+.btn-confirmar-anual:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.filtros-vinculadas {
+  margin-bottom: 15px;
+}
+
+.form-control-small {
+  padding: 8px 12px;
+  background: #243b69;
+  border: 2px solid #38507f;
+  border-radius: 6px;
+  color: #f7fafc;
+  font-size: 0.9rem;
+}
+
+.lista-vinculadas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vinculacao-item {
+  background: #243b69;
+  border: 2px solid #38507f;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.vinculacao-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 10px;
+}
+
+.vinculacao-info h4 {
+  color: #f7fafc;
+  margin: 0 0 6px 0;
+  font-size: 1rem;
+}
+
+.vinculacao-info p {
+  color: #b8c2d3;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.vinculacao-badge {
+  background: rgba(79, 195, 247, 0.2);
+  color: #4fc3f7;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.vinculacao-empresas {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #38507f;
+}
+
+.vinculacao-empresas-label {
+  color: #7a8a9e;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.empresas-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.empresa-tag {
+  background: rgba(255, 255, 255, 0.1);
+  color: #b8c2d3;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.btn-remover-vinculacao {
+  background: rgba(239, 83, 80, 0.2);
+  color: #ff6b6b;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+}
+
+.btn-remover-vinculacao:hover {
+  background: rgba(239, 83, 80, 0.3);
+}
+
+/* Scrollbar */
+.results-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.results-list::-webkit-scrollbar-track {
+  background: #1e3a5f;
+  border-radius: 3px;
+}
+
+.results-list::-webkit-scrollbar-thumb {
+  background: #38507f;
+  border-radius: 3px;
+}
+
+.results-list::-webkit-scrollbar-thumb:hover {
+  background: #4fc3f7;
+}
+
+@media (max-width: 1024px) {
+  .anual-container {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<script>
+console.log('🚀 Painel de Tarefas Anuais inicializado');
+
+// Estado
+const anualState = {
+  ano: 2025,
+  tarefaSelecionada: null,
+  funcionarioSelecionado: null,
+  empresasSelecionadas: [],
+  todasTarefas: [],
+  todosFuncionarios: [],
+  todasEmpresas: []
+};
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', function() {
+  carregarTarefasAnuais();
+  carregarFuncionarios();
+  carregarEmpresas();
+  carregarTarefasVinculadas();
+  
+  // Listener para mudança de ano
+  document.getElementById('anoExecucao').addEventListener('change', function(e) {
+    anualState.ano = parseInt(e.target.value);
+    console.log('📅 Ano selecionado:', anualState.ano);
+  });
+});
+
+// Carregar tarefas anuais
+async function carregarTarefasAnuais() {
+  const tarefasList = document.getElementById('tarefasList');
+  tarefasList.innerHTML = '<div class="loading-msg"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+  
+  try {
+    const response = await fetch('/gerenciamento/api/tarefas-anuais-disponiveis');
+    const data = await response.json();
+    
+    if (data.success && data.tarefas) {
+      anualState.todasTarefas = data.tarefas;
+      mostrarTarefas(data.tarefas);
+    } else {
+      tarefasList.innerHTML = '<div class="placeholder-msg">Nenhuma tarefa anual encontrada</div>';
+    }
+  } catch (error) {
+    console.error('❌ Erro:', error);
+    tarefasList.innerHTML = '<div class="placeholder-msg" style="color: #ff6b6b;">Erro ao carregar tarefas</div>';
+  }
+}
+
+// Mostrar tarefas
+function mostrarTarefas(tarefas) {
+  const tarefasList = document.getElementById('tarefasList');
+  
+  if (tarefas.length === 0) {
+    tarefasList.innerHTML = '<div class="placeholder-msg">Nenhuma tarefa encontrada</div>';
+    return;
+  }
+  
+  tarefasList.innerHTML = tarefas.map(t => `
+    <div class="result-item" onclick="selecionarTarefa(${t.id}, '${t.nome.replace(/'/g, "\\'")}', '${t.setor}', ${t.tarefa_comum})">
+      <h5>${t.nome}</h5>
+      <p>${t.setor} ${t.tarefa_comum ? '• Comum' : '• ' + t.tributacao}</p>
+    </div>
+  `).join('');
+}
+
+// Selecionar tarefa
+function selecionarTarefa(id, nome, setor, tarefa_comum) {
+  console.log('✅ Tarefa selecionada:', { id, nome, setor });
+  
+  anualState.tarefaSelecionada = { id, nome, setor, tarefa_comum };
+  
+  // Highlight
+  document.querySelectorAll('#tarefasList .result-item').forEach(item => item.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  
+  // Mostrar info
+  document.getElementById('tarefaId').value = id;
+  document.getElementById('tarefaSelecionada').innerHTML = `<i class="fas fa-check"></i> ${nome}`;
+  document.getElementById('tarefaSelecionada').style.display = 'block';
+  
+  // Habilitar próximo step
+  document.getElementById('grupoFuncionario').style.opacity = '1';
+  document.getElementById('grupoFuncionario').style.pointerEvents = 'auto';
+  document.getElementById('searchFuncionario').disabled = false;
+  
+  // Filtrar empresas compatíveis se necessário
+  if (!tarefa_comum) {
+    console.log('ℹ️ Tarefa específica de tributação - filtrar empresas compatíveis');
+  }
+}
+
+// Carregar funcionários
+async function carregarFuncionarios() {
+  try {
+    const response = await fetch('/tarefas-v2/api/funcionarios');
+    const data = await response.json();
+    
+    if (data.success && data.funcionarios) {
+      anualState.todosFuncionarios = data.funcionarios;
+      console.log(`✅ ${data.funcionarios.length} funcionários carregados`);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar funcionários:', error);
+  }
+}
+
+// Buscar funcionário
+let timeoutFunc;
+document.getElementById('searchFuncionario').addEventListener('input', function(e) {
+  const query = e.target.value.trim().toLowerCase();
+  
+  clearTimeout(timeoutFunc);
+  
+  if (query.length === 0) {
+    mostrarFuncionarios(anualState.todosFuncionarios);
+    return;
+  }
+  
+  timeoutFunc = setTimeout(() => {
+    const filtered = anualState.todosFuncionarios.filter(f => 
+      f.nome.toLowerCase().includes(query)
+    );
+    mostrarFuncionarios(filtered);
+  }, 300);
+});
+
+// Mostrar funcionários
+function mostrarFuncionarios(funcionarios) {
+  const funcionariosList = document.getElementById('funcionariosList');
+  
+  if (funcionarios.length === 0) {
+    funcionariosList.innerHTML = '<div class="placeholder-msg">Nenhum funcionário encontrado</div>';
+    return;
+  }
+  
+  funcionariosList.innerHTML = funcionarios.map(f => `
+    <div class="result-item" onclick="selecionarFuncionario(${f.id}, '${f.nome.replace(/'/g, "\\'")}', '${f.setor || "N/A"}')">
+      <h5>${f.nome}</h5>
+      <p>${f.setor || 'Sem setor'}</p>
+    </div>
+  `).join('');
+}
+
+// Selecionar funcionário
+function selecionarFuncionario(id, nome, setor) {
+  console.log('✅ Funcionário selecionado:', { id, nome });
+  
+  anualState.funcionarioSelecionado = { id, nome, setor };
+  
+  // Highlight
+  document.querySelectorAll('#funcionariosList .result-item').forEach(item => item.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  
+  // Mostrar info
+  document.getElementById('funcionarioId').value = id;
+  document.getElementById('funcionarioSelecionado').innerHTML = `<i class="fas fa-check"></i> ${nome}`;
+  document.getElementById('funcionarioSelecionado').style.display = 'block';
+  
+  // Habilitar próximo step
+  document.getElementById('grupoEmpresas').style.opacity = '1';
+  document.getElementById('grupoEmpresas').style.pointerEvents = 'auto';
+  document.getElementById('searchEmpresas').disabled = false;
+  
+  // Mostrar empresas
+  mostrarEmpresas(anualState.todasEmpresas);
+}
+
+// Carregar empresas
+async function carregarEmpresas() {
+  try {
+    const response = await fetch('/tarefas-melhoradas/api/empresas');
+    const data = await response.json();
+    
+    if (data.success && data.empresas) {
+      anualState.todasEmpresas = data.empresas;
+      console.log(`✅ ${data.empresas.length} empresas carregadas`);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar empresas:', error);
+  }
+}
+
+// Buscar empresa
+let timeoutEmp;
+document.getElementById('searchEmpresas').addEventListener('input', function(e) {
+  const query = e.target.value.trim().toLowerCase();
+  
+  clearTimeout(timeoutEmp);
+  
+  if (query.length === 0) {
+    mostrarEmpresas(anualState.todasEmpresas);
+    return;
+  }
+  
+  timeoutEmp = setTimeout(() => {
+    const filtered = anualState.todasEmpresas.filter(e => 
+      e.nome.toLowerCase().includes(query) || e.codigo.toLowerCase().includes(query)
+    );
+    mostrarEmpresas(filtered);
+  }, 300);
+});
+
+// Mostrar empresas
+function mostrarEmpresas(empresas) {
+  const empresasList = document.getElementById('empresasList');
+  
+  if (empresas.length === 0) {
+    empresasList.innerHTML = '<div class="placeholder-msg">Nenhuma empresa encontrada</div>';
+    return;
+  }
+  
+  empresasList.innerHTML = empresas.map(e => `
+    <div class="checkbox-item">
+      <input type="checkbox" id="emp-${e.id}" value="${e.id}" onchange="toggleEmpresa(${e.id}, '${e.nome.replace(/'/g, "\\'")}')">
+      <label for="emp-${e.id}">${e.nome} (${e.codigo})</label>
+    </div>
+  `).join('');
+}
+
+// Toggle empresa
+function toggleEmpresa(id, nome) {
+  const checkbox = document.getElementById(`emp-${id}`);
+  
+  if (checkbox.checked) {
+    anualState.empresasSelecionadas.push({ id, nome });
+  } else {
+    anualState.empresasSelecionadas = anualState.empresasSelecionadas.filter(e => e.id !== id);
+  }
+  
+  atualizarContadorEmpresas();
+  atualizarBotaoConfirmar();
+}
+
+// Atualizar contador
+function atualizarContadorEmpresas() {
+  const count = anualState.empresasSelecionadas.length;
+  document.getElementById('countEmpresas').textContent = count;
+  document.getElementById('empresasSelecionadas').style.display = count > 0 ? 'block' : 'none';
+}
+
+// Atualizar botão confirmar
+function atualizarBotaoConfirmar() {
+  const btn = document.getElementById('btnConfirmarAnual');
+  const podeFconfirmar = anualState.tarefaSelecionada && 
+                          anualState.funcionarioSelecionado && 
+                          anualState.empresasSelecionadas.length > 0 &&
+                          anualState.ano;
+  
+  btn.disabled = !podeFconfirmar;
+}
+
+// Confirmar vinculação
+async function confirmarVinculacaoAnual() {
+  if (!anualState.ano) {
+    alert('❌ Selecione o ano');
+    return;
+  }
+  
+  if (!anualState.tarefaSelecionada) {
+    alert('❌ Selecione uma tarefa');
+    return;
+  }
+  
+  if (!anualState.funcionarioSelecionado) {
+    alert('❌ Selecione um funcionário');
+    return;
+  }
+  
+  if (anualState.empresasSelecionadas.length === 0) {
+    alert('❌ Selecione pelo menos uma empresa');
+    return;
+  }
+  
+  const btn = document.getElementById('btnConfirmarAnual');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vinculando...';
+  
+  try {
+    const response = await fetch('/gerenciamento/api/vincular-tarefa-anual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ano: anualState.ano,
+        tarefa_id: anualState.tarefaSelecionada.id,
+        funcionario_id: anualState.funcionarioSelecionado.id,
+        empresas_ids: anualState.empresasSelecionadas.map(e => e.id)
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(`✅ ${data.message}`);
+      
+      // Resetar formulário
+      resetarFormulario();
+      
+      // Recarregar lista de vinculadas
+      carregarTarefasVinculadas();
+    } else {
+      alert(`❌ ${data.message}`);
+    }
+  } catch (error) {
+    console.error('❌ Erro:', error);
+    alert('❌ Erro ao vincular tarefa anual');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Vinculação';
+    atualizarBotaoConfirmar();
+  }
+}
+
+// Resetar formulário
+function resetarFormulario() {
+  anualState.tarefaSelecionada = null;
+  anualState.funcionarioSelecionado = null;
+  anualState.empresasSelecionadas = [];
+  
+  document.querySelectorAll('.result-item.selected').forEach(item => item.classList.remove('selected'));
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+  
+  document.getElementById('tarefaId').value = '';
+  document.getElementById('funcionarioId').value = '';
+  document.getElementById('tarefaSelecionada').style.display = 'none';
+  document.getElementById('funcionarioSelecionado').style.display = 'none';
+  document.getElementById('empresasSelecionadas').style.display = 'none';
+  
+  document.getElementById('searchTarefa').value = '';
+  document.getElementById('searchFuncionario').value = '';
+  document.getElementById('searchEmpresas').value = '';
+  
+  document.getElementById('grupoFuncionario').style.opacity = '0.5';
+  document.getElementById('grupoFuncionario').style.pointerEvents = 'none';
+  document.getElementById('searchFuncionario').disabled = true;
+  
+  document.getElementById('grupoEmpresas').style.opacity = '0.5';
+  document.getElementById('grupoEmpresas').style.pointerEvents = 'none';
+  document.getElementById('searchEmpresas').disabled = true;
+  
+  mostrarTarefas(anualState.todasTarefas);
+}
+
+// Carregar tarefas vinculadas
+async function carregarTarefasVinculadas() {
+  const listaVinculadas = document.getElementById('listaVinculadas');
+  listaVinculadas.innerHTML = '<div class="loading-msg"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+  
+  const ano = document.getElementById('filtroAno').value;
+  
+  try {
+    const url = ano ? `/gerenciamento/api/tarefas-anuais?ano=${ano}` : '/gerenciamento/api/tarefas-anuais';
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    if (data.success && data.tarefas && data.tarefas.length > 0) {
+      mostrarTarefasVinculadas(data.tarefas);
+    } else {
+      listaVinculadas.innerHTML = '<div class="placeholder-msg">Nenhuma tarefa anual vinculada</div>';
+    }
+  } catch (error) {
+    console.error('❌ Erro:', error);
+    listaVinculadas.innerHTML = '<div class="placeholder-msg" style="color: #ff6b6b;">Erro ao carregar</div>';
+  }
+}
+
+// Mostrar tarefas vinculadas
+function mostrarTarefasVinculadas(tarefas) {
+  const listaVinculadas = document.getElementById('listaVinculadas');
+  
+  // Agrupar por tarefa + funcionário
+  const grupos = {};
+  tarefas.forEach(t => {
+    const chave = `${t.tarefa_id}_${t.responsavel_id}`;
+    if (!grupos[chave]) {
+      grupos[chave] = {
+        tarefa_nome: t.tarefa_nome,
+        responsavel_nome: t.responsavel_nome,
+        ano: t.ano,
+        empresas: []
+      };
+    }
+    grupos[chave].empresas.push({ id: t.empresa_id, nome: t.empresa_nome });
+  });
+  
+  listaVinculadas.innerHTML = Object.values(grupos).map((grupo, idx) => `
+    <div class="vinculacao-item">
+      <div class="vinculacao-item-header">
+        <div class="vinculacao-info">
+          <h4>${grupo.tarefa_nome}</h4>
+          <p>👤 ${grupo.responsavel_nome} • 📅 Ano ${grupo.ano}</p>
+        </div>
+        <span class="vinculacao-badge">${grupo.empresas.length} empresa(s)</span>
+      </div>
+      <div class="vinculacao-empresas">
+        <span class="vinculacao-empresas-label">Empresas:</span>
+        <div class="empresas-tags">
+          ${grupo.empresas.map(e => `<span class="empresa-tag">${e.nome}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+</script>
+{% endblock %}
+

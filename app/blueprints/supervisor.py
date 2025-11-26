@@ -140,6 +140,10 @@ def criar_empresa():
 def alterar_tributacao(empresa_id):
     """Alterar tributação de uma empresa"""
     try:
+        from app.models import RelacionamentoTarefa, Periodo, Tarefa, TarefaTributacao, VinculacaoEmpresaTributacao, MudancaTributacaoPendente
+        from datetime import date
+        from app.utils import gerar_periodo_label
+        
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
@@ -151,13 +155,190 @@ def alterar_tributacao(empresa_id):
         
         data = request.get_json()
         tributacao_id = data.get('tributacao_id')
+        motivo = data.get('motivo', 'Mudança de tributação pelo supervisor')
         
         # Buscar empresa
         empresa = Empresa.query.get(empresa_id)
         if not empresa:
             return jsonify({'success': False, 'message': 'Empresa não encontrada'}), 404
         
-        # Atualizar tributação
+        tributacao_anterior_id = empresa.tributacao_id
+        
+        # Verificar se a tributação está realmente mudando
+        if tributacao_anterior_id == tributacao_id:
+            return jsonify({'success': False, 'message': 'A empresa já possui esta tributação'}), 400
+        
+        # Identificar período atual
+        hoje = date.today()
+        periodo_atual_label = gerar_periodo_label(hoje.year, hoje.month)
+        
+        # Buscar todos os relacionamentos ativos da empresa
+        relacionamentos_ativos = RelacionamentoTarefa.query.filter_by(
+            empresa_id=empresa_id,
+            versao_atual=True,
+            status='ativa'
+        ).all()
+        
+        # Separar relacionamentos: período atual vs futuros e tarefas comuns vs específicas
+        relacionamentos_periodo_atual = []
+        relacionamentos_futuros_com_tributacao = []
+        
+        for rel in relacionamentos_ativos:
+            tarefa = Tarefa.query.get(rel.tarefa_id)
+            if not tarefa:
+                continue
+            
+            # Verificar se é tarefa comum (sem tributação específica)
+            is_tarefa_comum = tarefa.tarefa_comum or (tarefa.tributacao_id is None and not TarefaTributacao.query.filter_by(tarefa_id=tarefa.id).first())
+            
+            # Se é tarefa comum, não desativar
+            if is_tarefa_comum:
+                continue
+            
+            # Verificar se tem período no período atual
+            periodo_atual = Periodo.query.filter_by(
+                relacionamento_tarefa_id=rel.id,
+                periodo_label=periodo_atual_label
+            ).first()
+            
+            if periodo_atual and periodo_atual.status not in ['concluida', 'cancelada']:
+                # Tem período ativo, não desativar
+                relacionamentos_periodo_atual.append(rel)
+            else:
+                # Não tem período ativo ou já concluído, pode desativar para próximos períodos
+                # Verificar se a tarefa é da tributação anterior
+                if tributacao_anterior_id:
+                    # Verificar se tarefa pertence à tributação anterior
+                    tarefa_trib = TarefaTributacao.query.filter_by(
+                        tarefa_id=tarefa.id,
+                        tributacao_id=tributacao_anterior_id
+                    ).first()
+                    
+                    if tarefa_trib or tarefa.tributacao_id == tributacao_anterior_id:
+                        relacionamentos_futuros_com_tributacao.append(rel)
+        
+        # Desativar relacionamentos de tarefas da tributação antiga (apenas para próximos períodos)
+        for rel in relacionamentos_futuros_com_tributacao:
+            rel.versao_atual = False
+            rel.data_fim = date.today()
+            rel.motivo_desativacao = f"Mudança de tributação: próximos períodos desativados (período atual preservado)"
+        
+        # Criar ou atualizar vinculação empresa-tributação
+        if tributacao_id:
+            # Desativar vinculação atual se existir
+            vinculacao_atual = VinculacaoEmpresaTributacao.query.filter_by(
+                empresa_id=empresa_id,
+                ativo=True
+            ).first()
+            
+            if vinculacao_atual:
+                vinculacao_atual.ativo = False
+                vinculacao_atual.data_fim = date.today()
+            
+            # Criar nova vinculação
+            nova_vinculacao = VinculacaoEmpresaTributacao(
+                empresa_id=empresa_id,
+                tributacao_id=tributacao_id,
+                data_inicio=date.today(),
+                ativo=True
+            )
+            db.session.add(nova_vinculacao)
+            db.session.flush()  # Para obter o ID
+            
+            # Buscar tarefas da nova tributação
+            tarefas_nova_tributacao = TarefaTributacao.query.filter_by(
+                tributacao_id=tributacao_id,
+                ativo=True
+            ).all()
+            
+            # Buscar também tarefas com tributacao_id direto
+            tarefas_diretas = Tarefa.query.filter_by(
+                tributacao_id=tributacao_id
+            ).all()
+            
+            # Criar relacionamentos para novas tarefas (sem responsável - será definido pelo gerente)
+            tarefas_ids_processadas = set()
+            
+            for tt in tarefas_nova_tributacao:
+                if tt.tarefa_id in tarefas_ids_processadas:
+                    continue
+                tarefas_ids_processadas.add(tt.tarefa_id)
+                
+                # Verificar se já existe relacionamento desativado (para reativar)
+                rel_existente = RelacionamentoTarefa.query.filter_by(
+                    empresa_id=empresa_id,
+                    tarefa_id=tt.tarefa_id,
+                    versao_atual=False
+                ).order_by(RelacionamentoTarefa.criado_em.desc()).first()
+                
+                if rel_existente:
+                    # Reativar relacionamento existente
+                    rel_existente.versao_atual = True
+                    rel_existente.vinculacao_id = nova_vinculacao.id
+                    rel_existente.data_inicio = date.today()
+                    rel_existente.data_fim = None
+                    rel_existente.motivo_desativacao = None
+                    rel_existente.responsavel_id = None  # Será definido pelo gerente
+                    rel_existente.status = 'ativa'
+                else:
+                    # Criar novo relacionamento (sem responsável)
+                    novo_rel = RelacionamentoTarefa(
+                        empresa_id=empresa_id,
+                        tarefa_id=tt.tarefa_id,
+                        responsavel_id=None,  # Será definido pelo gerente
+                        vinculacao_id=nova_vinculacao.id,
+                        status='ativa',
+                        data_inicio=date.today(),
+                        versao_atual=True
+                    )
+                    db.session.add(novo_rel)
+            
+            # Processar tarefas com tributacao_id direto
+            for tarefa in tarefas_diretas:
+                if tarefa.id in tarefas_ids_processadas:
+                    continue
+                tarefas_ids_processadas.add(tarefa.id)
+                
+                # Verificar se já existe relacionamento desativado
+                rel_existente = RelacionamentoTarefa.query.filter_by(
+                    empresa_id=empresa_id,
+                    tarefa_id=tarefa.id,
+                    versao_atual=False
+                ).order_by(RelacionamentoTarefa.criado_em.desc()).first()
+                
+                if rel_existente:
+                    rel_existente.versao_atual = True
+                    rel_existente.vinculacao_id = nova_vinculacao.id
+                    rel_existente.data_inicio = date.today()
+                    rel_existente.data_fim = None
+                    rel_existente.motivo_desativacao = None
+                    rel_existente.responsavel_id = None
+                    rel_existente.status = 'ativa'
+                else:
+                    novo_rel = RelacionamentoTarefa(
+                        empresa_id=empresa_id,
+                        tarefa_id=tarefa.id,
+                        responsavel_id=None,
+                        vinculacao_id=nova_vinculacao.id,
+                        status='ativa',
+                        data_inicio=date.today(),
+                        versao_atual=True
+                    )
+                    db.session.add(novo_rel)
+            
+            # Criar registro de mudança pendente para notificação dos gerentes
+            mudanca_pendente = MudancaTributacaoPendente(
+                empresa_id=empresa_id,
+                tributacao_anterior_id=tributacao_anterior_id,
+                tributacao_nova_id=tributacao_id,
+                data_mudanca=date.today(),
+                motivo=motivo,
+                status='pendente',
+                criado_por=user_id
+            )
+            db.session.add(mudanca_pendente)
+        
+        # Atualizar empresa
         empresa.tributacao_id = tributacao_id if tributacao_id else None
         empresa.atualizado_em = datetime.now()
         
@@ -165,7 +346,8 @@ def alterar_tributacao(empresa_id):
         
         return jsonify({
             'success': True,
-            'message': 'Tributação alterada com sucesso!'
+            'message': 'Tributação alterada com sucesso! Tarefas do período atual foram preservadas. As novas tarefas aparecerão para vinculação no painel do gerente.',
+            'mudanca_id': mudanca_pendente.id if tributacao_id else None
         })
         
     except Exception as e:

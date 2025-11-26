@@ -81,6 +81,9 @@ class RelacionamentoTarefa(db.Model):
 	
 	# Relacionamentos
 	vinculacao = db.relationship('VinculacaoEmpresaTributacao', backref='relacionamentos', lazy=True)
+	tarefa = db.relationship('Tarefa', backref='relacionamentos', lazy=True)
+	empresa = db.relationship('Empresa', backref='relacionamentos_tarefas', lazy=True)
+	responsavel = db.relationship('Usuario', backref='relacionamentos_tarefas', lazy=True)
 
 
 class Periodo(db.Model):

@@ -201,7 +201,7 @@
                   <span class="status-badge status-inactive">Em Andamento</span>
                 {% endif %}
               </td>
-              <td>{{ responsavel.periodo_label }}</td>
+              <td>{{ responsavel.periodo_label|br_period }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -360,8 +360,9 @@
 // ===== INICIALIZAÇÃO SIMPLIFICADA =====
 document.addEventListener('DOMContentLoaded', function() {
   console.log('🚀 Painel do gerente inicializado - funcionalidades integradas ao novo painel de tarefas');
-  carregarTarefasGerenciamento();
+  // carregarTarefasGerenciamento(); // COMENTADO - Use o novo sistema V2 em /tarefas-v2/
   carregarDadosModais();
+  console.log('ℹ️ Para atribuir tarefas, clique em "Atribuir Tarefas" no menu lateral ou no botão verde acima');
 });
 
 // ===== FUNÇÕES DO NOVO PAINEL DE TAREFAS =====
@@ -743,3 +744,4 @@ function excluirTarefa(id) {
   }
 }
 </style>
+

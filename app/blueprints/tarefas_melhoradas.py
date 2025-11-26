@@ -1,36 +1,41 @@
 from flask import Blueprint, render_template, request, session, jsonify, redirect, url_for
+from sqlalchemy import or_
+from datetime import datetime, date
+import json
+
 from app.db import db
 from app.models import (
     Empresa, Tributacao, Usuario, Tarefa, RelacionamentoTarefa, Setor,
     VinculacaoEmpresaTributacao, TarefaTributacao, ConfiguracaoResponsavelPadrao
 )
-from datetime import datetime, date
-import json
 
 bp = Blueprint('tarefas_melhoradas', __name__, url_prefix='/tarefas-melhoradas')
 
 
 @bp.get('/standalone')
 def gerente_tarefas_standalone():
-    """Página STANDALONE de gerenciamento de tarefas (SEM base.html)"""
+    """Página standalone moderna do gerente (sem layout global)"""
     try:
         user_id = session.get('user_id')
         if not user_id:
             return redirect(url_for('auth.login_page'))
         
-        # Verificar se é gerente
+        # Verificar tipo de usuário
         usuario = Usuario.query.get(user_id)
         if not usuario or usuario.tipo not in ['admin', 'gerente']:
             return redirect(url_for('auth.login_page'))
         
-        # Buscar dados para a página
         setores = Setor.query.all()
+        tributacoes = Tributacao.query.order_by(Tributacao.nome).all()
         
         print(f"✅ Renderizando página standalone para {usuario.nome}")
         
-        return render_template('gerente_tarefas.html',
-                             usuario=usuario,
-                             setores=setores)
+        return render_template(
+            'gerente_tarefas_standalone.html',
+            usuario=usuario,
+            setores=setores,
+            tributacoes=tributacoes
+        )
         
     except Exception as e:
         print(f"Erro na página de tarefas standalone: {str(e)}")
@@ -39,23 +44,25 @@ def gerente_tarefas_standalone():
 
 @bp.get('/nova')
 def gerente_tarefas():
-    """Nova página de gerenciamento de tarefas (LIMPA E FUNCIONAL)"""
+    """Mantido para compatibilidade; redireciona à versão standalone"""
     try:
         user_id = session.get('user_id')
         if not user_id:
             return redirect(url_for('auth.login_page'))
         
-        # Verificar se é gerente
         usuario = Usuario.query.get(user_id)
         if not usuario or usuario.tipo not in ['admin', 'gerente']:
             return redirect(url_for('auth.login_page'))
         
-        # Buscar dados para a página
         setores = Setor.query.all()
+        tributacoes = Tributacao.query.order_by(Tributacao.nome).all()
         
-        return render_template('gerente_tarefas.html',
-                             usuario=usuario,
-                             setores=setores)
+        return render_template(
+            'gerente_tarefas_standalone.html',
+            usuario=usuario,
+            setores=setores,
+            tributacoes=tributacoes
+        )
         
     except Exception as e:
         print(f"Erro na página de tarefas: {str(e)}")
@@ -159,63 +166,89 @@ def api_empresa_detalhes(empresa_id):
 
 @bp.post('/api/vincular-responsavel')
 def api_vincular_responsavel():
-    """API para vincular responsável a tarefas"""
+    """API para vincular tarefas de uma empresa a um responsável específico"""
     try:
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
         
-        # Verificar tipo de usuário
         usuario = Usuario.query.get(user_id)
         if not usuario or usuario.tipo not in ['admin', 'gerente']:
             return jsonify({'success': False, 'message': 'Acesso negado'}), 403
         
-        data = request.get_json()
+        data = request.get_json() or {}
+        empresa_id = data.get('empresa_id')
+        responsavel_id = data.get('responsavel_id')
+        tarefas = data.get('tarefas', [])
         
-        if not data.get('responsavel_id') or not data.get('tarefas'):
-            return jsonify({'success': False, 'message': 'Dados obrigatórios não fornecidos'}), 400
+        if not empresa_id:
+            return jsonify({'success': False, 'message': 'Empresa não informada'}), 400
+        if not responsavel_id:
+            return jsonify({'success': False, 'message': 'Responsável não informado'}), 400
+        if not tarefas:
+            return jsonify({'success': False, 'message': 'Selecione pelo menos uma tarefa'}), 400
         
-        responsavel_id = data['responsavel_id']
-        tarefas = data['tarefas']
+        empresa = Empresa.query.get(empresa_id)
+        if not empresa or not empresa.ativo:
+            return jsonify({'success': False, 'message': 'Empresa não encontrada'}), 404
         
-        # Verificar se responsável existe
         responsavel = Usuario.query.get(responsavel_id)
-        if not responsavel:
+        if not responsavel or not responsavel.ativo:
             return jsonify({'success': False, 'message': 'Responsável não encontrado'}), 404
         
-        vinculacoes_criadas = 0
+        if usuario.tipo == 'gerente' and usuario.setor_id:
+            # Garantir que o gerente só vincule usuários do seu setor
+            if responsavel.setor_id != usuario.setor_id:
+                return jsonify({'success': False, 'message': 'Responsável não pertence ao seu setor'}), 403
+        
+        criados = 0
+        atualizados = 0
         
         for tarefa_id in tarefas:
-            # Verificar se tarefa existe
             tarefa = Tarefa.query.get(tarefa_id)
             if not tarefa:
                 continue
             
-            # Verificar se já existe vinculação
-            vinculacao_existente = RelacionamentoTarefa.query.filter_by(
+            # IMPORTANTE: Tarefas anuais não devem ser vinculadas via este processo
+            # Elas são vinculadas manualmente e apenas uma vez
+            if tarefa.tipo == 'Anual':
+                print(f"⚠️ Tentativa de vincular tarefa anual {tarefa.id} ({tarefa.nome}) - ignorando")
+                continue
+            
+            if usuario.tipo == 'gerente' and usuario.setor_id and tarefa.setor_id != usuario.setor_id:
+                continue
+            
+            relacionamento = RelacionamentoTarefa.query.filter_by(
+                empresa_id=empresa_id,
                 tarefa_id=tarefa_id,
-                responsavel_id=responsavel_id,
-                ativo=True
+                versao_atual=True
             ).first()
             
-            if not vinculacao_existente:
-                # Criar nova vinculação
-                vinculacao = RelacionamentoTarefa(
+            if relacionamento:
+                relacionamento.responsavel_id = responsavel_id
+                relacionamento.status = 'ativa'
+                relacionamento.atualizado_em = datetime.utcnow()
+                atualizados += 1
+            else:
+                novo_rel = RelacionamentoTarefa(
+                    empresa_id=empresa_id,
                     tarefa_id=tarefa_id,
                     responsavel_id=responsavel_id,
-                    ativo=True,
-                    dia_vencimento=1,  # Dia padrão
-                    prazo_especifico=None
+                    status='ativa',
+                    versao_atual=True,
+                    criado_em=datetime.utcnow(),
+                    atualizado_em=datetime.utcnow()
                 )
-                
-                db.session.add(vinculacao)
-                vinculacoes_criadas += 1
+                db.session.add(novo_rel)
+                criados += 1
         
         db.session.commit()
         
         return jsonify({
-            'success': True, 
-            'message': f'{vinculacoes_criadas} vinculação(ões) criada(s) com sucesso!'
+            'success': True,
+            'message': 'Vinculação realizada com sucesso',
+            'criados': criados,
+            'atualizados': atualizados
         })
         
     except Exception as e:
@@ -525,48 +558,227 @@ def api_buscar_tarefas():
 def api_empresas():
     """API para buscar empresas"""
     try:
-        print(f"🔍 API empresas chamada - User ID: {session.get('user_id')}")
-        
         user_id = session.get('user_id')
         if not user_id:
-            print("❌ Usuário não autenticado")
             return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
         
-        # Verificar tipo de usuário
         usuario = Usuario.query.get(user_id)
-        print(f"👤 Usuário encontrado: {usuario.nome if usuario else 'None'}, Tipo: {usuario.tipo if usuario else 'None'}")
-        
         if not usuario or usuario.tipo not in ['admin', 'gerente']:
-            print("❌ Acesso negado - tipo de usuário inválido")
             return jsonify({'success': False, 'message': 'Acesso negado'}), 403
         
         search = request.args.get('search', '').strip()
-        print(f"🔍 Busca: '{search}'")
+        limit = request.args.get('limit', type=int) or 30
+        limit = max(5, min(limit, 200))
         
-        # Buscar empresas ativas
         empresas_query = Empresa.query.filter(Empresa.ativo == True)
         
         if search:
             empresas_query = empresas_query.filter(Empresa.nome.ilike(f'%{search}%'))
         
-        empresas = empresas_query.limit(20).all()
-        print(f"📊 Empresas encontradas: {len(empresas)}")
+        empresas = empresas_query.order_by(Empresa.nome).limit(limit).all()
         
         empresas_data = []
         for empresa in empresas:
             empresas_data.append({
                 'id': empresa.id,
                 'nome': empresa.nome,
-                'codigo': empresa.codigo
+                'codigo': empresa.codigo,
+                'tributacao_id': empresa.tributacao_id,
+                'tributacao_nome': empresa.tributacao.nome if empresa.tributacao else 'Não definida'
             })
         
-        print(f"✅ Retornando {len(empresas_data)} empresas")
         return jsonify({
             'success': True,
             'empresas': empresas_data
         })
         
     except Exception as e:
+        return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500
+
+
+@bp.get('/api/empresas/<int:empresa_id>/tarefas-disponiveis')
+def api_tarefas_disponiveis_empresa(empresa_id):
+    """Retorna tarefas disponíveis (não vinculadas) para uma empresa específica"""
+    try:
+        print(f"[INFO] API tarefas-disponiveis chamada para empresa_id: {empresa_id}")
+        user_id = session.get('user_id')
+        if not user_id:
+            print(f"[ERROR] Usuario nao autenticado")
+            return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
+        
+        usuario = Usuario.query.get(user_id)
+        if not usuario or usuario.tipo not in ['admin', 'gerente']:
+            print(f"[ERROR] Acesso negado para usuario {user_id} (tipo: {usuario.tipo if usuario else 'None'})")
+            return jsonify({'success': False, 'message': 'Acesso negado'}), 403
+        
+        print(f"[OK] Usuario autenticado: {usuario.nome} (tipo: {usuario.tipo})")
+        empresa = Empresa.query.get(empresa_id)
+        if not empresa:
+            print(f"[ERROR] Empresa {empresa_id} nao encontrada no banco")
+            return jsonify({'success': False, 'message': f'Empresa {empresa_id} não encontrada'}), 404
+        
+        if not empresa.ativo:
+            print(f"[ERROR] Empresa {empresa_id} ({empresa.nome}) esta inativa")
+            return jsonify({'success': False, 'message': f'Empresa {empresa.nome} está inativa'}), 404
+        
+        print(f"[OK] Empresa encontrada: {empresa.nome} (ID: {empresa.id}, Ativa: {empresa.ativo})")
+        
+        search = request.args.get('search', '').strip()
+        tributacao_id = request.args.get('tributacao_id', type=int)
+        tipo = request.args.get('tipo', '').strip()
+        
+        query = Tarefa.query
+        
+        # Filtrar por setor se for gerente
+        if usuario.tipo == 'gerente' and usuario.setor_id:
+            query = query.filter(Tarefa.setor_id == usuario.setor_id)
+        
+        # Filtrar por tributação da empresa
+        if empresa.tributacao_id:
+            query = query.filter(
+                or_(
+                    Tarefa.tarefa_comum == True,
+                    Tarefa.tributacao_id == empresa.tributacao_id
+                )
+            )
+        else:
+            # Se empresa não tem tributação definida, mostrar apenas tarefas comuns
+            query = query.filter(Tarefa.tarefa_comum == True)
+        
+        # Filtro adicional por tributação (se fornecido)
+        if tributacao_id:
+            query = query.filter(
+                or_(
+                    Tarefa.tarefa_comum == True,
+                    Tarefa.tributacao_id == tributacao_id
+                )
+            )
+        
+        # Filtros opcionais
+        if search:
+            query = query.filter(Tarefa.nome.ilike(f'%{search}%'))
+        
+        if tipo:
+            query = query.filter(Tarefa.tipo.ilike(tipo))
+        
+        # Buscar IDs de tarefas já vinculadas a esta empresa
+        tarefas_vinculadas_ids = db.session.query(RelacionamentoTarefa.tarefa_id).filter(
+            RelacionamentoTarefa.empresa_id == empresa_id,
+            RelacionamentoTarefa.versao_atual == True,
+            RelacionamentoTarefa.status == 'ativa'
+        ).all()
+        
+        # Converter para lista de IDs
+        ids_vinculadas = [t[0] for t in tarefas_vinculadas_ids] if tarefas_vinculadas_ids else []
+        
+        # Excluir tarefas já vinculadas (se houver alguma)
+        if ids_vinculadas:
+            query = query.filter(~Tarefa.id.in_(ids_vinculadas))
+        
+        tarefas = query.order_by(Tarefa.nome).limit(300).all()
+        
+        tarefas_data = []
+        for tarefa in tarefas:
+            try:
+                tarefas_data.append({
+                    'id': tarefa.id,
+                    'nome': tarefa.nome,
+                    'tipo': tarefa.tipo,
+                    'descricao': tarefa.descricao,
+                    'setor': tarefa.setor.nome if tarefa.setor else 'N/A',
+                    'tributacao_id': tarefa.tributacao_id,
+                    'tributacao': tarefa.tributacao.nome if tarefa.tributacao else ('Comum' if tarefa.tarefa_comum else 'Não definida'),
+                    'tarefa_comum': tarefa.tarefa_comum
+                })
+            except Exception as e:
+                print(f"[WARN] Erro ao processar tarefa {tarefa.id}: {str(e)}")
+                continue
+        
+        print(f"[OK] Retornando {len(tarefas_data)} tarefas disponiveis para empresa {empresa.nome} (ID: {empresa_id})")
+        
+        return jsonify({
+            'success': True,
+            'empresa': {
+                'id': empresa.id,
+                'nome': empresa.nome,
+                'tributacao_id': empresa.tributacao_id,
+                'tributacao_nome': empresa.tributacao.nome if empresa.tributacao else 'Não definida'
+            },
+            'total': len(tarefas_data),
+            'tarefas': tarefas_data
+        })
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[ERROR] Erro na API tarefas-disponiveis: {str(e)}")
+        print(f"[TRACE] {error_trace}")
+        return jsonify({'success': False, 'message': f'Erro ao buscar tarefas: {str(e)}'}), 500
+
+
+@bp.get('/api/responsaveis')
+def api_responsaveis():
+    """Busca responsáveis disponíveis para vinculação"""
+    try:
+        print(f"[INFO] API responsaveis chamada")
+        user_id = session.get('user_id')
+        if not user_id:
+            print(f"[ERROR] Usuario nao autenticado")
+            return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
+        
+        usuario = Usuario.query.get(user_id)
+        if not usuario or usuario.tipo not in ['admin', 'gerente']:
+            print(f"[ERROR] Acesso negado para usuario {user_id} (tipo: {usuario.tipo if usuario else 'None'})")
+            return jsonify({'success': False, 'message': 'Acesso negado'}), 403
+        
+        print(f"[OK] Usuario autenticado: {usuario.nome} (tipo: {usuario.tipo})")
+        search = request.args.get('q', '').strip()
+        limit = request.args.get('limit', type=int) or 20
+        limit = max(5, min(limit, 100))
+        print(f"[INFO] Buscando responsaveis com termo: '{search}' (limit: {limit})")
+        
+        query = Usuario.query.filter(Usuario.ativo == True)
+        # Filtrar apenas usuários normais e gerentes (não admins)
+        query = query.filter(Usuario.tipo.in_(['normal', 'gerente']))
+        
+        print(f"[DEBUG] Query inicial: {query}")
+        print(f"[DEBUG] Usuario logado - Tipo: {usuario.tipo}, Setor ID: {usuario.setor_id}")
+        
+        if usuario.tipo == 'gerente' and usuario.setor_id:
+            query = query.filter(Usuario.setor_id == usuario.setor_id)
+            print(f"[DEBUG] Filtro aplicado: setor_id = {usuario.setor_id}")
+        else:
+            print(f"[DEBUG] Sem filtro de setor (admin ou gerente sem setor)")
+        
+        if search:
+            query = query.filter(Usuario.nome.ilike(f'%{search}%'))
+            print(f"[DEBUG] Filtro de busca aplicado: nome LIKE '%{search}%'")
+        else:
+            print(f"[DEBUG] Sem filtro de busca (termo vazio)")
+        
+        # Debug: contar antes do limit
+        total_antes_limit = query.count()
+        print(f"[DEBUG] Total de responsaveis antes do limit: {total_antes_limit}")
+        
+        responsaveis = query.order_by(Usuario.nome).limit(limit).all()
+        
+        print(f"[OK] Encontrados {len(responsaveis)} responsaveis")
+        for r in responsaveis:
+            print(f"   - {r.nome} (ID: {r.id}, Tipo: {r.tipo}, Setor: {r.setor_id})")
+        
+        data = [{
+            'id': r.id,
+            'nome': r.nome,
+            'setor': r.setor.nome if r.setor else 'N/A'
+        } for r in responsaveis]
+        
+        return jsonify({'success': True, 'responsaveis': data})
+        
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[ERROR] Erro na API responsaveis: {str(e)}")
+        print(f"[TRACE] {error_trace}")
         return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500
 
 

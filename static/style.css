@@ -65,9 +65,12 @@ a {
   flex-direction: column;
   position: fixed;
   height: 100vh;
-  z-index: 100;
+  z-index: 1000 !important;
   border-right: 1px solid var(--border-color);
   box-shadow: var(--shadow-lg);
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .sidebar-header {

@@ -1,6 +1,14 @@
 from flask import Flask, redirect, url_for, request, session, render_template
 from app.db import db
 from datetime import datetime, date
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+from .config import get_config, BaseConfig, TestingConfig
+
+# Carregar variáveis de ambiente do arquivo .env, se existir
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / '.env', override=False)
 
 # Armazenamento em memória para dados de exemplo
 mock_db = {
@@ -41,23 +49,23 @@ mock_db = {
 }
 
 
-def create_app() -> Flask:
+def create_app(config_name: str | None = None) -> Flask:
 	app = Flask(__name__, template_folder="../templates", static_folder="../static")
-	app.config["SECRET_KEY"] = "dev-secret-key"
-	app.config["AUTH_ENABLED"] = True  # reativado
 
-	# Configuração SQLAlchemy MySQL
-	app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Tuta1305*@localhost/contabilidade?charset=utf8mb4'
-	app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-	
-	# Configuração de Cache
-	app.config['CACHE_TYPE'] = 'simple'  # Use 'redis' em produção
-	app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 5 minutos
-	
-	# Configuração de Rate Limiting
-	app.config['RATELIMIT_ENABLED'] = True
-	app.config['RATELIMIT_STORAGE_URL'] = 'memory://'  # Use 'redis://' em produção
-	
+	env_name = config_name or os.getenv('APP_ENV') or os.getenv('FLASK_ENV')
+	config_class = get_config(env_name)
+	app.config.from_object(config_class)
+
+	# Garantir defaults críticos
+	app.config.setdefault('SECRET_KEY', 'dev-secret-key')
+	app.config.setdefault('AUTH_ENABLED', True)
+	app.config.setdefault('SQLALCHEMY_DATABASE_URI', BaseConfig.SQLALCHEMY_DATABASE_URI)
+	app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+	app.config.setdefault('CACHE_DEFAULT_TIMEOUT', BaseConfig.CACHE_DEFAULT_TIMEOUT)
+	app.config.setdefault('CACHE_TYPE', BaseConfig.CACHE_TYPE)
+	app.config.setdefault('RATELIMIT_ENABLED', BaseConfig.RATELIMIT_ENABLED)
+	app.config.setdefault('RATELIMIT_STORAGE_URL', BaseConfig.RATELIMIT_STORAGE_URL)
+
 	db.init_app(app)
 	
 	# Inicializar extensões
@@ -76,7 +84,7 @@ def create_app() -> Flask:
 			app=app,
 			key_func=get_remote_address,
 			default_limits=["200 per day", "50 per hour"],
-			storage_uri='memory://'  # Use Redis em produção
+			storage_uri=app.config.get('RATELIMIT_STORAGE_URL', 'memory://')
 		)
 		app.limiter = limiter
 	except ImportError:
@@ -85,11 +93,11 @@ def create_app() -> Flask:
 	# Configuração de logging
 	import logging
 	from logging.handlers import RotatingFileHandler
-	import os
+	import os as _os
 	
 	if not app.debug and not app.testing:
-		if not os.path.exists('logs'):
-			os.mkdir('logs')
+		if not _os.path.exists('logs'):
+			_os.mkdir('logs')
 		file_handler = RotatingFileHandler('logs/contabilidade.log', maxBytes=10240, backupCount=10)
 		file_handler.setFormatter(logging.Formatter(
 			'%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
@@ -115,12 +123,22 @@ def create_app() -> Flask:
 
 	@app.template_filter('br_period')
 	def br_period(value):
+		"""Converte período de YYYY-MM para MM/AAAA"""
 		if not value:
 			return '-'
-		text = str(value)
+		text = str(value).strip()
+		# Se já está no formato MM/AAAA, retorna como está
+		if '/' in text:
+			return text
+		# Se está no formato YYYY-MM, converte para MM/AAAA
 		parts = text.split('-')
-		if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
-			return f"{parts[1]}/{parts[0]}"
+		if len(parts) >= 2:
+			year = parts[0]
+			month = parts[1]
+			# Garantir que o mês tenha 2 dígitos
+			if month.isdigit():
+				month = month.zfill(2)
+				return f"{month}/{year}"
 		return text
 
 	# Funções globais para templates
@@ -160,7 +178,9 @@ def create_app() -> Flask:
 	from .blueprints.supervisor import bp as supervisor_bp
 	from .blueprints.checklist import bp as checklist_bp
 	from .blueprints.tarefas_melhoradas import bp as tarefas_melhoradas_bp
+	from .blueprints.tarefas_v2 import bp as tarefas_v2_bp
 	from .blueprints.api_global import bp as api_global_bp
+	from .blueprints.api_v1 import bp as api_v1_bp
 	from .blueprints.sistema_completo_tarefas import bp as sistema_completo_tarefas_bp
 	from .blueprints.search import bp as search_bp
 	from .blueprints.search_simple import bp as search_simple_bp
@@ -174,7 +194,9 @@ def create_app() -> Flask:
 	app.register_blueprint(admin_bp)
 	app.register_blueprint(tarefas_auto_bp)
 	app.register_blueprint(tarefas_melhoradas_bp)
+	app.register_blueprint(tarefas_v2_bp)
 	app.register_blueprint(api_global_bp)
+	app.register_blueprint(api_v1_bp)
 	app.register_blueprint(supervisor_bp)
 	app.register_blueprint(checklist_bp)
 	app.register_blueprint(sistema_completo_tarefas_bp)
@@ -224,7 +246,7 @@ def create_app() -> Flask:
 		return render_template('error.html', 
 			error_code=500, 
 			error_message="Erro interno do servidor"), 500
-
+	
 	@app.errorhandler(Exception)
 	def handle_exception(e):
 		app.logger.error(f'Unhandled Exception: {e}')
