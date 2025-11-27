@@ -361,3 +361,83 @@ def historico_retificacoes(periodo_id):
             'success': False,
             'message': f'Erro ao buscar histórico: {str(e)}'
         }), 500
+
+
+def verificar_e_criar_tarefas_periodo_atual():
+    """
+    Verifica e cria tarefas do período atual se necessário.
+    Esta função deve ser chamada apenas uma vez por dia, no primeiro login.
+    Retorna: (tarefas_criadas, tarefas_existentes, periodo_label)
+    """
+    try:
+        hoje = datetime.now()
+        ano = hoje.year
+        mes = hoje.month
+        
+        # Calcular período
+        periodo_label = gerar_periodo_label(ano, mes)
+        
+        # Verificar se já existem tarefas para este período
+        periodos_existentes = Periodo.query.filter_by(periodo_label=periodo_label).count()
+        
+        # Se já existem tarefas, não precisa criar
+        if periodos_existentes > 0:
+            return (0, periodos_existentes, periodo_label)
+        
+        # Buscar todos os relacionamentos ativos (versão atual e status ativa)
+        relacionamentos = RelacionamentoTarefa.query.filter_by(
+            status='ativa',
+            versao_atual=True
+        ).all()
+        
+        if not relacionamentos:
+            return (0, 0, periodo_label)
+        
+        tarefas_criadas = 0
+        tarefas_existentes = 0
+        
+        for rel in relacionamentos:
+            tarefa = Tarefa.query.get(rel.tarefa_id)
+            if not tarefa:
+                continue
+            
+            # IGNORAR TAREFAS ANUAIS - elas são gerenciadas separadamente
+            if tarefa.tipo == 'Anual':
+                continue
+            
+            # Calcular datas do período baseado no tipo da tarefa
+            inicio, fim, periodo_label_tarefa = calcular_datas_periodo(ano, mes, tarefa.tipo)
+            
+            # Verificar se já existe período para este relacionamento
+            periodo_existente = Periodo.query.filter_by(
+                relacionamento_tarefa_id=rel.id,
+                periodo_label=periodo_label_tarefa
+            ).first()
+            
+            if periodo_existente:
+                tarefas_existentes += 1
+                continue
+            
+            # Criar novo período apenas se não existir
+            novo_periodo = Periodo(
+                relacionamento_tarefa_id=rel.id,
+                inicio=inicio,
+                fim=fim,
+                periodo_label=periodo_label_tarefa,
+                status='pendente',
+                contador_retificacoes=0,
+                atualizado_em=datetime.now()
+            )
+            
+            db.session.add(novo_periodo)
+            tarefas_criadas += 1
+        
+        if tarefas_criadas > 0:
+            db.session.commit()
+        
+        return (tarefas_criadas, tarefas_existentes, periodo_label)
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro ao verificar/criar tarefas do período atual: {str(e)}")
+        return (0, 0, None)

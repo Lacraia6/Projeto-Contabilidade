@@ -919,7 +919,32 @@ window.loadChecklistBadge = function() {
 };
 
 // Carregar tarefas anuais no painel do gerente
+// Contador de tentativas para evitar loop infinito
+let tentativasTarefasAnuais = 0;
+const MAX_TENTATIVAS_TAREFAS_ANUALS = 3;
+
 window.loadTarefasAnuaisGerenciamento = function() {
+  // Verificar se os elementos existem antes de fazer a requisição
+  const tbody = document.getElementById('tarefas-anuais-table-body');
+  const section = document.getElementById('tarefas-anuais-section');
+  
+  // Se os elementos não existem e já tentamos várias vezes, parar
+  if ((!tbody || !section) && tentativasTarefasAnuais >= MAX_TENTATIVAS_TAREFAS_ANUALS) {
+    console.log('❌ Elementos de tarefas anuais não encontrados após várias tentativas. Parando requisições.');
+    return;
+  }
+  
+  // Se os elementos não existem, tentar novamente (mas limitado)
+  if (!tbody || !section) {
+    tentativasTarefasAnuais++;
+    console.log(`❌ Elementos não encontrados, tentativa ${tentativasTarefasAnuais}/${MAX_TENTATIVAS_TAREFAS_ANUALS}...`);
+    setTimeout(() => window.loadTarefasAnuaisGerenciamento(), 500);
+    return;
+  }
+  
+  // Resetar contador se encontrou os elementos
+  tentativasTarefasAnuais = 0;
+  
   console.log('🔄 Carregando tarefas anuais do gerenciamento...');
   
   fetch('/gerenciamento/api/tarefas-anuais', {
@@ -934,16 +959,7 @@ window.loadTarefasAnuaisGerenciamento = function() {
   .then(data => {
     console.log('📊 Dados recebidos:', data);
     
-    const tbody = document.getElementById('tarefas-anuais-table-body');
-    const section = document.getElementById('tarefas-anuais-section');
-    
     console.log('🔍 Elementos encontrados:', { tbody: !!tbody, section: !!section });
-    
-    if (!tbody || !section) {
-      console.log('❌ Elementos não encontrados, tentando novamente em 500ms...');
-      setTimeout(() => window.loadTarefasAnuaisGerenciamento(), 500);
-      return;
-    }
     
     if (data.success && data.tarefas_anuais && data.tarefas_anuais.length > 0) {
       console.log('✅ Mostrando seção de tarefas anuais com', data.tarefas_anuais.length, 'tarefas');

@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from app.models import Usuario
+from datetime import datetime
 
 bp = Blueprint('auth', __name__, url_prefix='')
 
@@ -34,6 +35,26 @@ def login_submit():
 	session['user_id'] = user.id
 	session['user_nome'] = user.nome
 	session['user_tipo'] = user.tipo
+	
+	# Verificar se é o primeiro login do dia e criar tarefas do período atual se necessário
+	# Usar uma flag na sessão para garantir que isso só aconteça uma vez por dia
+	hoje_str = datetime.now().strftime('%Y-%m-%d')
+	ultima_verificacao = session.get('ultima_verificacao_tarefas', '')
+	
+	if ultima_verificacao != hoje_str:
+		try:
+			from app.blueprints.tarefas_auto import verificar_e_criar_tarefas_periodo_atual
+			tarefas_criadas, tarefas_existentes, periodo_label = verificar_e_criar_tarefas_periodo_atual()
+			
+			# Marcar que já verificamos hoje
+			session['ultima_verificacao_tarefas'] = hoje_str
+			
+			# Log silencioso (não mostrar para o usuário, apenas criar as tarefas)
+			if tarefas_criadas > 0:
+				print(f"✅ Tarefas do período {periodo_label} criadas automaticamente: {tarefas_criadas} novas, {tarefas_existentes} já existentes")
+		except Exception as e:
+			# Em caso de erro, não bloquear o login, apenas logar o erro
+			print(f"⚠️ Erro ao verificar/criar tarefas do período atual no login: {str(e)}")
 	
 	# Redirecionamento baseado no tipo de usuário
 	if user.tipo == 'admin':

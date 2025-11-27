@@ -1248,34 +1248,82 @@ def api_atualizar_responsavel_relacionamentos():
         
         dados = request.get_json()
         relacionamentos = dados.get('relacionamentos', [])
+        mudanca_id = dados.get('mudanca_id')  # Receber mudanca_id se fornecido
+        
+        print(f"🔵 Recebido: {len(relacionamentos)} relacionamentos, mudanca_id: {mudanca_id}")
         
         if not relacionamentos:
             return jsonify({'success': False, 'message': 'Nenhum relacionamento fornecido'}), 400
         
         atualizados = 0
+        empresa_id = None
+        erros = []
+        
         for item in relacionamentos:
             rel_id = item.get('relacionamento_id')
             responsavel_id = item.get('responsavel_id')
             
+            print(f"🔵 Processando: rel_id={rel_id}, responsavel_id={responsavel_id}")
+            
             if not rel_id or not responsavel_id:
+                erros.append(f"Relacionamento {rel_id} sem dados válidos")
                 continue
             
             # Verificar responsável
             responsavel = Usuario.query.get(responsavel_id)
-            if not responsavel or not responsavel.activo:
+            if not responsavel:
+                erros.append(f"Responsável {responsavel_id} não encontrado")
+                continue
+            
+            if not responsavel.ativo:
+                erros.append(f"Responsável {responsavel_id} está inativo")
                 continue
             
             rel = RelacionamentoTarefa.query.get(rel_id)
-            if rel and rel.versao_atual:
-                rel.responsavel_id = responsavel_id
-                atualizados += 1
+            if not rel:
+                erros.append(f"Relacionamento {rel_id} não encontrado")
+                continue
+            
+            if not rel.versao_atual:
+                erros.append(f"Relacionamento {rel_id} não está na versão atual")
+                continue
+            
+            # Atualizar responsável
+            rel.responsavel_id = responsavel_id
+            if not empresa_id:
+                empresa_id = rel.empresa_id
+            atualizados += 1
+            print(f"✅ Relacionamento {rel_id} atualizado com responsável {responsavel_id}")
+        
+        if erros:
+            print(f"⚠️ Erros encontrados: {erros}")
+        
+        # Se forneceu mudanca_id, verificar se todas as tarefas foram processadas
+        mudanca_concluida = False
+        if mudanca_id and empresa_id:
+            mudanca = MudancaTributacaoPendente.query.get(mudanca_id)
+            if mudanca:
+                # Verificar se ainda há tarefas sem responsável
+                tarefas_sem_responsavel = RelacionamentoTarefa.query.filter(
+                    RelacionamentoTarefa.empresa_id == empresa_id,
+                    RelacionamentoTarefa.responsavel_id.is_(None),
+                    RelacionamentoTarefa.versao_atual == True
+                ).count()
+                
+                # Se não há mais tarefas sem responsável, marcar mudança como concluída
+                if tarefas_sem_responsavel == 0 and mudanca.status in ['pendente', 'em_revisao']:
+                    mudanca.status = 'concluida'
+                    mudanca.revisado_por = user_id
+                    mudanca.data_revisao = datetime.now()
+                    mudanca_concluida = True
         
         db.session.commit()
         
         return jsonify({
             'success': True,
             'message': f'✅ {atualizados} tarefa(s) vinculada(s) com sucesso!',
-            'atualizados': atualizados
+            'atualizados': atualizados,
+            'mudanca_concluida': mudanca_concluida
         })
         
     except Exception as e:
@@ -1298,24 +1346,49 @@ def api_desativar_tarefas():
         
         dados = request.get_json()
         relacionamentos_ids = dados.get('relacionamentos_ids', [])
+        mudanca_id = dados.get('mudanca_id')  # Receber mudanca_id se fornecido
         
         if not relacionamentos_ids:
             return jsonify({'success': False, 'message': 'Nenhum relacionamento fornecido'}), 400
         
         desativados = 0
+        empresa_id = None
+        
         for rel_id in relacionamentos_ids:
             rel = RelacionamentoTarefa.query.get(rel_id)
             if rel and rel.versao_atual:
                 # Desativar a tarefa (não será mais exibida como pendente)
                 rel.versao_atual = False
+                if not empresa_id:
+                    empresa_id = rel.empresa_id
                 desativados += 1
+        
+        # Se forneceu mudanca_id, verificar se todas as tarefas foram processadas
+        mudanca_concluida = False
+        if mudanca_id and empresa_id:
+            mudanca = MudancaTributacaoPendente.query.get(mudanca_id)
+            if mudanca:
+                # Verificar se ainda há tarefas sem responsável
+                tarefas_sem_responsavel = RelacionamentoTarefa.query.filter(
+                    RelacionamentoTarefa.empresa_id == empresa_id,
+                    RelacionamentoTarefa.responsavel_id.is_(None),
+                    RelacionamentoTarefa.versao_atual == True
+                ).count()
+                
+                # Se não há mais tarefas sem responsável, marcar mudança como concluída
+                if tarefas_sem_responsavel == 0 and mudanca.status in ['pendente', 'em_revisao']:
+                    mudanca.status = 'concluida'
+                    mudanca.revisado_por = user_id
+                    mudanca.data_revisao = datetime.now()
+                    mudanca_concluida = True
         
         db.session.commit()
         
         return jsonify({
             'success': True,
             'message': f'✅ {desativados} tarefa(s) marcada(s) como "Não vincular"',
-            'desativados': desativados
+            'desativados': desativados,
+            'mudanca_concluida': mudanca_concluida
         })
         
     except Exception as e:
@@ -1381,6 +1454,61 @@ def api_vincular_responsavel_mudanca():
             'success': True, 
             'message': f'{vinculacoes_criadas} tarefa(s) vinculada(s) com sucesso!'
         })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Erro: {str(e)}'}), 500
+
+
+@bp.post('/api/verificar-concluir-mudanca')
+def api_verificar_concluir_mudanca():
+    """API para verificar e concluir mudança de tributação se todas as tarefas foram processadas"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': 'Usuário não autenticado'}), 401
+        
+        # Verificar se é gerente ou admin
+        usuario = Usuario.query.get(user_id)
+        if not usuario or usuario.tipo not in ['admin', 'gerente']:
+            return jsonify({'success': False, 'message': 'Acesso negado'}), 403
+        
+        data = request.get_json()
+        mudanca_id = data.get('mudanca_id')
+        
+        if not mudanca_id:
+            return jsonify({'success': False, 'message': 'ID da mudança não fornecido'}), 400
+        
+        mudanca = MudancaTributacaoPendente.query.get(mudanca_id)
+        if not mudanca:
+            return jsonify({'success': False, 'message': 'Mudança não encontrada'}), 404
+        
+        # Verificar se ainda há tarefas sem responsável
+        tarefas_sem_responsavel = RelacionamentoTarefa.query.filter(
+            RelacionamentoTarefa.empresa_id == mudanca.empresa_id,
+            RelacionamentoTarefa.responsavel_id.is_(None),
+            RelacionamentoTarefa.versao_atual == True
+        ).count()
+        
+        # Se não há mais tarefas sem responsável e mudança ainda está pendente, marcar como concluída
+        if tarefas_sem_responsavel == 0 and mudanca.status in ['pendente', 'em_revisao']:
+            mudanca.status = 'concluida'
+            mudanca.revisado_por = user_id
+            mudanca.data_revisao = datetime.now()
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Mudança de tributação concluída automaticamente!',
+                'mudanca_concluida': True
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': f'Ainda há {tarefas_sem_responsavel} tarefa(s) sem responsável.',
+                'mudanca_concluida': False,
+                'tarefas_sem_responsavel': tarefas_sem_responsavel
+            })
         
     except Exception as e:
         db.session.rollback()
