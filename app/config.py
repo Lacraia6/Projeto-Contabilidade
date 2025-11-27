@@ -6,6 +6,26 @@ import os
 from typing import Dict, Type
 
 
+# class BaseConfig:
+# 	"""Default configuration shared across environments."""
+
+# 	SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
+# 	AUTH_ENABLED = True
+# 	SQLALCHEMY_DATABASE_URI = os.getenv(
+# 		'DATABASE_URL',
+# 		'mysql+pymysql://root:Tuta1305*@localhost/contabilidade?charset=utf8mb4'
+# 	)
+# 	SQLALCHEMY_TRACK_MODIFICATIONS = False
+# 	CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 300))
+# 	REDIS_URL = os.getenv('REDIS_URL') or os.getenv('CACHE_REDIS_URL')
+# 	CACHE_TYPE = 'RedisCache' if REDIS_URL else 'simple'
+# 	CACHE_REDIS_URL = REDIS_URL
+# 	RATELIMIT_ENABLED = True
+# 	RATELIMIT_STORAGE_URL = REDIS_URL or 'memory://'
+# 	WTF_CSRF_ENABLED = True
+# 	DEBUG = False
+# 	TESTING = False
+
 class BaseConfig:
 	"""Default configuration shared across environments."""
 
@@ -13,7 +33,7 @@ class BaseConfig:
 	AUTH_ENABLED = True
 	SQLALCHEMY_DATABASE_URI = os.getenv(
 		'DATABASE_URL',
-		'mysql+pymysql://root:Tuta1305*@localhost/contabilidade?charset=utf8mb4'
+		'mysql+pymysql://root:Gabrielrochadias12@localhost/contabilidade?charset=utf8mb4'
 	)
 	SQLALCHEMY_TRACK_MODIFICATIONS = False
 	CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 300))
